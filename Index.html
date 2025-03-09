@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHKFULL NIXDEV</title>
+    <style>
+        /* Estilos mantidos (mesmo CSS anterior) */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CHKFULL NIXDEV</h1>
+
+        <!-- Caixa de Cartões para Teste -->
+        <div class="box">
+            <h2>Cartões para Teste</h2>
+            <p>Máximo de 100 cartões simultâneos.</p>
+            <textarea id="cardsToTest" placeholder="Insira os números dos cartões no formato 4329580918784023|06|2025|358, um por linha..."></textarea>
+            <button id="startButton" class="button green">Iniciar</button>
+            <button id="pauseButton" class="button yellow">Pausar</button>
+            <button id="stopButton" class="button red">Parar</button>
+        </div>
+
+        <!-- Abas para Resultados -->
+        <div class="tabs">
+            <div class="tab active" data-tab="approved">Aprovados</div>
+            <div class="tab" data-tab="rejected">Reprovados</div>
+            <div class="tab" data-tab="errors">Erros</div>
+        </div>
+
+        <!-- Conteúdo das Abas -->
+        <div class="tab-content active" id="approved">
+            <h3>Cartões Aprovados</h3>
+            <button id="copyApproved" class="button blue">Copiar</button>
+            <textarea id="approvedCards" readonly></textarea>
+        </div>
+        <div class="tab-content" id="rejected">
+            <h3>Cartões Reprovados</h3>
+            <textarea id="rejectedCards" readonly></textarea>
+        </div>
+        <div class="tab-content" id="errors">
+            <h3>Erros</h3>
+            <textarea id="errorCards" readonly></textarea>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis globais
+        let cardsToTest = [];
+        let currentIndex = 0;
+        let isTesting = false;
+        let isPaused = false;
+        let interval;
+
+        // Elementos do DOM
+        const cardsToTestTextarea = document.getElementById('cardsToTest');
+        const approvedCardsTextarea = document.getElementById('approvedCards');
+        const rejectedCardsTextarea = document.getElementById('rejectedCards');
+        const errorCardsTextarea = document.getElementById('errorCards');
+        const startButton = document.getElementById('startButton');
+        const pauseButton = document.getElementById('pauseButton');
+        const stopButton = document.getElementById('stopButton');
+        const copyApproved = document.getElementById('copyApproved');
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        // Função para validar o algoritmo de Luhn
+        function luhnCheck(cardNumber) {
+            let sum = 0;
+            for (let i = 0; i < cardNumber.length; i++) {
+                let digit = parseInt(cardNumber[i]);
+                if ((cardNumber.length - i) % 2 === 0) {
+                    digit *= 2;
+                    if (digit > 9) digit -= 9;
+                }
+                sum += digit;
+            }
+            return sum % 10 === 0;
+        }
+
+        // Função para realizar o pagamento via API da Cielo
+        async function realizarPagamento(cardData) {
+            const cardNumber = cardData.split('|')[0];
+            if (!luhnCheck(cardNumber)) {
+                return { 
+                    status: 'Erro', 
+                    mensagem: 'Cartão inválido (Luhn)', 
+                    valor: 0,
+                    codigoRetorno: '400',
+                    descricao: 'Cartão inválido (Luhn)'
+                };
+            }
+
+            const valor = Math.floor(Math.random() * 5) + 1; // Valor entre 1 e 5 Reais
+            try {
+                const response = await fetch('http://localhost:3000/pagamento', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cardData, valor }),
+                });
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                return { 
+                    status: 'Erro', 
+                    mensagem: 'Falha na comunicação com a API', 
+                    valor,
+                    codigoRetorno: '500',
+                    descricao: 'Falha na comunicação com a API'
+                };
+            }
+        }
+
+        // Função para testar um cartão
+        async function testCard(cardData) {
+            const resultado = await realizarPagamento(cardData);
+            const linhaResultado = `Código: ${resultado.codigoRetorno} | Descrição: ${resultado.descricao} | Valor: R$ ${resultado.valor.toFixed(2)}\n`;
+
+            if (resultado.status === 'Aprovado') {
+                approvedCardsTextarea.value += `✅ ${cardData}\n${linhaResultado}\n`;
+            } else if (resultado.status === 'Reprovado') {
+                rejectedCardsTextarea.value += `❌ ${cardData}\n${linhaResultado}\n`;
+            } else {
+                errorCardsTextarea.value += `❌ ${cardData}\n${linhaResultado}\n`;
+            }
+        }
+
+        // Função para iniciar o teste
+        function startTest() {
+            if (isTesting) return;
+            isTesting = true;
+            isPaused = false;
+            cardsToTest = cardsToTestTextarea.value.split('\n').filter(card => card.trim() !== '');
+            currentIndex = 0;
+            interval = setInterval(async () => {
+                if (!isPaused && currentIndex < cardsToTest.length) {
+                    await testCard(cardsToTest[currentIndex]);
+                    currentIndex++;
+                    cardsToTestTextarea.value = cardsToTest.slice(currentIndex).join('\n');
+                } else if (currentIndex >= cardsToTest.length) {
+                    stopTest();
+                }
+            }, Math.floor(Math.random() * (6000 - 3000 + 1)) + 3000);
+        }
+
+        // Função para pausar o teste
+        function pauseTest() {
+            isPaused = true;
+        }
+
+        // Função para parar o teste
+        function stopTest() {
+            clearInterval(interval);
+            isTesting = false;
+            isPaused = false;
+        }
+
+        // Event Listeners
+        startButton.addEventListener('click', startTest);
+        pauseButton.addEventListener('click', pauseTest);
+        stopButton.addEventListener('click', stopTest);
+
+        // Copiar cartões aprovados
+        copyApproved.addEventListener('click', () => {
+            navigator.clipboard.writeText(approvedCardsTextarea.value);
+            alert('Cartões aprovados copiados!');
+        });
+
+        // Abas
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                tab.classList.add('active');
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
