@@ -1,8 +1,8 @@
-from flask import Flask, send_from_directory, request, jsonify
+from flask import Flask, render_template, request, jsonify
 import stripe
 import os
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__)
 
 # Configuração da Stripe
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
@@ -10,15 +10,10 @@ stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 if not stripe.api_key:
     raise ValueError("Chave de API da Stripe não configurada. Defina a variável de ambiente STRIPE_SECRET_KEY.")
 
-# Rota para servir o arquivo index.html
+# Rota para servir o index.html da pasta templates
 @app.route('/')
 def serve_index():
-    return send_from_directory(os.path.dirname(__file__), 'index.html')
-
-# Rota para servir arquivos estáticos (CSS, JS, etc.)
-@app.route('/static/<path:filename>')
-def serve_static(filename):
-    return send_from_directory('static', filename)
+    return render_template('index.html')
 
 # Rota para processar pagamentos
 @app.route('/processar-pagamento', methods=['POST'])
@@ -43,4 +38,3 @@ def processar_pagamento():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-    
