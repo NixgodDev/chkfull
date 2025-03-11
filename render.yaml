@@ -3,7 +3,8 @@ services:
     name: minha-aplicacao
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn -w 4 -b 0.0.0.0:5000 app:app
+    autoDeploy: true
     envVars:
       - key: STRIPE_SECRET_KEY
         value: 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
