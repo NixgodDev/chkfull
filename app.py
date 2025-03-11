@@ -2,7 +2,7 @@ from flask import Flask, send_from_directory, request, jsonify
 import stripe
 import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 # Configuração da Stripe
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
@@ -13,12 +13,12 @@ if not stripe.api_key:
 # Rota para servir o arquivo index.html
 @app.route('/')
 def serve_index():
-    return send_from_directory('.', 'index.html')
+    return send_from_directory(os.path.dirname(__file__), 'index.html')
 
-# Rota para servir outros arquivos estáticos (CSS, JS, etc.)
-@app.route('/<path:filename>')
+# Rota para servir arquivos estáticos (CSS, JS, etc.)
+@app.route('/static/<path:filename>')
 def serve_static(filename):
-    return send_from_directory('.', filename)
+    return send_from_directory('static', filename)
 
 # Rota para processar pagamentos
 @app.route('/processar-pagamento', methods=['POST'])
@@ -30,9 +30,9 @@ def processar_pagamento():
         return jsonify({"erro": "Token não fornecido"}), 400
 
     try:
-        # Crie uma cobrança usando o token
+        # Criação da cobrança
         cobranca = stripe.Charge.create(
-            amount=1000,  # $10.00 em centavos
+            amount=1000,  # R$ 10,00 (em centavos)
             currency="brl",
             source=token,
             description="Pagamento de teste"
@@ -43,3 +43,4 @@ def processar_pagamento():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+    
