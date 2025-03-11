@@ -6,16 +6,16 @@ from dotenv import load_dotenv
 # Carregar variáveis do .env
 load_dotenv()
 
-# Verificar se as chaves foram carregadas corretamente
+# Configurar Stripe
 stripe_secret_key = os.getenv("STRIPE_SECRET_KEY")
 stripe_public_key = os.getenv("STRIPE_PUBLIC_KEY")
 
 if not stripe_secret_key or not stripe_public_key:
-    raise ValueError("Erro: As chaves da Stripe não foram configuradas corretamente. Verifique o arquivo .env.")
+    raise ValueError("ERRO: As chaves da Stripe não foram configuradas corretamente!")
 
-# Configurar Stripe
 stripe.api_key = stripe_secret_key
 
+# Criar aplicação Flask
 app = Flask(__name__)
 
 @app.route("/")
@@ -26,24 +26,18 @@ def index():
 def validar_cartao():
     try:
         data = request.get_json()
-        token = data.get("token")
+        payment_method_id = data.get("payment_method")
 
-        if not token:
-            return jsonify({"erro": "Token do cartão é necessário"}), 400
-
-        # Criar um PaymentMethod antes de confirmar o SetupIntent
-        payment_method = stripe.PaymentMethod.create(
-            type="card",
-            card={"token": token}
-        )
+        if not payment_method_id:
+            return jsonify({"erro": "PaymentMethod é obrigatório!"}), 400
 
         # Criar um SetupIntent para validar o cartão sem cobrar
         setup_intent = stripe.SetupIntent.create(
-            payment_method=payment_method.id,
+            payment_method=payment_method_id,
             confirm=True
         )
 
-        return jsonify({"mensagem": "Cartão válido para transações!"})
+        return jsonify({"mensagem": "Cartão válido para transações!", "setup_intent": setup_intent.id})
 
     except stripe.error.CardError as e:
         return jsonify({"erro": "Erro no cartão: " + str(e.user_message)}), 400
@@ -59,6 +53,5 @@ def validar_cartao():
         return jsonify({"erro": "Erro interno: " + str(e)}), 500
 
 if __name__ == "__main__":
-    # Rodar o Flask em modo produção (sem debug)
     app.run(host="0.0.0.0", port=5001)
     
