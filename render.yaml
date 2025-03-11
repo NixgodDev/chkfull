@@ -6,4 +6,4 @@ services:
     startCommand: gunicorn app:app
     envVars:
       - key: STRIPE_SECRET_KEY
-        value: sua_chave_secreta_aqui
+        value: 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
