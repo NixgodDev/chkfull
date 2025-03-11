@@ -33,7 +33,7 @@ def processar_pagamento():
         # Crie uma cobrança usando o token
         cobranca = stripe.Charge.create(
             amount=1000,  # $10.00 em centavos
-            currency="usd",
+            currency="brl",
             source=token,
             description="Pagamento de teste"
         )
