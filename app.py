@@ -37,7 +37,8 @@ def validar_cartao():
             card={"token": token}
         )
 
-        # Criar um SetupIntent para validar o cartão sem cobrar                                                                                       setup_intent = stripe.SetupIntent.create(
+        # Criar um SetupIntent para validar o cartão sem cobrar
+        setup_intent = stripe.SetupIntent.create(
             payment_method=payment_method.id,
             confirm=True
         )
@@ -60,3 +61,4 @@ def validar_cartao():
 if __name__ == "__main__":
     # Rodar o Flask em modo produção (sem debug)
     app.run(host="0.0.0.0", port=5001)
+    
