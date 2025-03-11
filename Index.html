@@ -7,6 +7,7 @@
     <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
+    <h1>Pagamento com Stripe</h1>
     <form id="payment-form">
         <div id="card-element"></div>
         <button id="submit">Pagar</button>
@@ -15,42 +16,30 @@
 
     <script>
         // Inicialize o Stripe com sua chave pública
-        const stripe = Stripe('pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7'); // Substitua pela sua chave pública
+        const stripe = Stripe('pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7');
 
-        // Crie uma instância do Stripe Elements
+        // Criar uma instância do Stripe Elements
         const elements = stripe.elements();
-
-        // Crie um elemento de cartão e monte-o no formulário
         const cardElement = elements.create('card');
         cardElement.mount('#card-element');
 
-        // Configure o tratamento de erros
+        // Tratamento de erros
         const errorMessage = document.getElementById('error-message');
         cardElement.on('change', (event) => {
-            if (event.error) {
-                errorMessage.textContent = event.error.message;
-            } else {
-                errorMessage.textContent = '';
-            }
+            errorMessage.textContent = event.error ? event.error.message : '';
         });
 
-        // Configure o envio do formulário
+        // Enviar o formulário
         const form = document.getElementById('payment-form');
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
-
-            // Desabilite o botão de submit para evitar múltiplos cliques
             document.getElementById('submit').disabled = true;
 
-            // Crie um token com os dados do cartão
             const { token, error } = await stripe.createToken(cardElement);
-
             if (error) {
-                // Mostre o erro ao usuário
                 errorMessage.textContent = error.message;
                 document.getElementById('submit').disabled = false;
             } else {
-                // Envie o token para o backend
                 fetch('/processar-pagamento', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -58,13 +47,9 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.erro) {
-                        errorMessage.textContent = data.erro;
-                    } else {
-                        alert('Pagamento processado com sucesso!');
-                    }
+                    alert(data.erro ? data.erro : 'Pagamento realizado com sucesso!');
                 })
-                .catch(error => {
+                .catch(() => {
                     errorMessage.textContent = 'Erro ao processar o pagamento.';
                 })
                 .finally(() => {
