@@ -1,62 +1,51 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teste de Cartão</title>
+    <title>Validação de Cartão - Stripe</title>
     <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
-    <h2>Testar Cartão</h2>
+    <h2>Teste seu Cartão</h2>
+    <form id="form">
+        <label>Número do Cartão:</label>
+        <div id="card-element"></div><br><br>
 
-    <form id="payment-form">
-        <div id="card-element"></div>
-        <button type="submit" id="submit-button">Validar Cartão</button>
-        <p id="status-message"></p>
+        <button type="submit">Validar Cartão</button>
     </form>
 
+    <p id="resultado"></p>
+
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            var stripe = Stripe("{{ public_key | safe }}");
-            var elements = stripe.elements();
-            var cardElement = elements.create("card");
-            cardElement.mount("#card-element");
+        const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7");
+        const elements = stripe.elements();
+        const cardElement = elements.create("card");
+        cardElement.mount("#card-element");
 
-            var form = document.getElementById("payment-form");
-            var submitButton = document.getElementById("submit-button");
-            var statusMessage = document.getElementById("status-message");
+        document.getElementById("form").addEventListener("submit", async function(event) {
+            event.preventDefault();
 
-            form.addEventListener("submit", function(event) {
-                event.preventDefault();
-
-                // Desativar botão enquanto processa
-                submitButton.disabled = true;
-                statusMessage.innerText = "Validando cartão...";
-
-                stripe.createToken(cardElement).then(function(result) {
-                    if (result.error) {
-                        statusMessage.innerText = "Erro: " + result.error.message;
-                        submitButton.disabled = false;
-                    } else {
-                        fetch("/validar_cartao", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify({ token: result.token.id })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            statusMessage.innerText = data.mensagem || data.erro;
-                            submitButton.disabled = false;
-                        })
-                        .catch(error => {
-                            statusMessage.innerText = "Erro ao processar requisição.";
-                            submitButton.disabled = false;
-                        });
-                    }
-                });
+            const { paymentMethod, error } = await stripe.createPaymentMethod({
+                type: "card",
+                card: cardElement,
             });
+
+            if (error) {
+                document.getElementById("resultado").innerText = "Erro no cartão: " + error.message;
+                return;
+            }
+
+            fetch("/validar_cartao", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ payment_method: paymentMethod.id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("resultado").innerText = data.mensagem || data.erro;
+            })
+            .catch(error => console.error("Erro:", error));
         });
     </script>
 </body>
