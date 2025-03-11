@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Cartão</title>
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+    <h2>Testar Cartão</h2>
+
+    <form id="payment-form">
+        <div id="card-element"></div>
+        <button type="submit" id="submit-button">Validar Cartão</button>
+        <p id="status-message"></p>
+    </form>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var stripe = Stripe("{{ public_key | safe }}");
+            var elements = stripe.elements();
+            var cardElement = elements.create("card");
+            cardElement.mount("#card-element");
+
+            var form = document.getElementById("payment-form");
+            var submitButton = document.getElementById("submit-button");
+            var statusMessage = document.getElementById("status-message");
+
+            form.addEventListener("submit", function(event) {
+                event.preventDefault();
+
+                // Desativar botão enquanto processa
+                submitButton.disabled = true;
+                statusMessage.innerText = "Validando cartão...";
+
+                stripe.createToken(cardElement).then(function(result) {
+                    if (result.error) {
+                        statusMessage.innerText = "Erro: " + result.error.message;
+                        submitButton.disabled = false;
+                    } else {
+                        fetch("/validar_cartao", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({ token: result.token.id })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            statusMessage.innerText = data.mensagem || data.erro;
+                            submitButton.disabled = false;
+                        })
+                        .catch(error => {
+                            statusMessage.innerText = "Erro ao processar requisição.";
+                            submitButton.disabled = false;
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
