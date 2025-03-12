@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     async function validarCartao(paymentMethodId) {
         try {
-            const response = await fetch("https://stripe-backend.onrender.com/pagar", {
+            const response = await fetch("https://chkfull.onrender.com", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ payment_method_id: paymentMethodId })
