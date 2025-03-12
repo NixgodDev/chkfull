@@ -11,6 +11,11 @@ import os
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 stripe.api_key = STRIPE_SECRET_KEY
 
+# Rota para a página inicial
+@app.route("/")
+def home():
+    return jsonify({"message": "API está rodando! Use /pagar para validar cartões."})
+
 @app.route("/pagar", methods=["POST"])
 def pagar():
     try:
@@ -42,5 +47,5 @@ def pagar():
         return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
-  
+    port = int(os.getenv("PORT", 5000))  # Usa a porta definida pelo Render
+    app.run(host="0.0.0.0", port=port, debug=False)
