@@ -1,0 +1,4 @@
+[build]
+  base = "frontend"  # Caminho para a pasta com seu HTML/JS
+  publish = "."  # Publicar a pasta raiz ou 'frontend' conforme sua estrutura
+  command = ""  # Não há comando de build
