@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validação de Cartão - Stripe</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script defer src="script.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #card-element { width: 300px; margin: auto; padding: 10px; border: 1px solid #ccc; }
+        button { margin-top: 10px; padding: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>Validar Cartão com Stripe</h2>
+    <form id="payment-form">
+        <div id="card-element"></div>
+        <button type="submit">Testar Cartão</button>
+    </form>
+    <div id="message"></div>
+</body>
+</html>
