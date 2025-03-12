@@ -1,57 +1,44 @@
-import os
-from flask import Flask, render_template, request, jsonify
+import time
 import stripe
-from dotenv import load_dotenv
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
-# Carregar variáveis do .env
-load_dotenv()
-
-# Configurar Stripe
-stripe_secret_key = os.getenv("STRIPE_SECRET_KEY")
-stripe_public_key = os.getenv("STRIPE_PUBLIC_KEY")
-
-if not stripe_secret_key or not stripe_public_key:
-    raise ValueError("ERRO: As chaves da Stripe não foram configuradas corretamente!")
-
-stripe.api_key = stripe_secret_key
-
-# Criar aplicação Flask
 app = Flask(__name__)
+CORS(app)  # Permitir requisições do frontend
 
-@app.route("/")
-def index():
-    return render_template("index.html", public_key=stripe_public_key)
+# Chave secreta do Stripe (modo produção)
+STRIPE_SECRET_KEY = "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"
+stripe.api_key = STRIPE_SECRET_KEY
 
-@app.route("/validar_cartao", methods=["POST"])
-def validar_cartao():
+@app.route("/pagar", methods=["POST"])
+def pagar():
     try:
-        data = request.get_json()
-        payment_method_id = data.get("payment_method")
+        data = request.json
+        payment_method_id = data.get("payment_method_id")
 
         if not payment_method_id:
-            return jsonify({"erro": "PaymentMethod é obrigatório!"}), 400
+            return jsonify({"error": "Nenhum payment_method_id fornecido"}), 400
 
-        # Criar um SetupIntent para validar o cartão sem cobrar
-        setup_intent = stripe.SetupIntent.create(
+        # Criar um pagamento de teste ($1.00)
+        payment_intent = stripe.PaymentIntent.create(
+            amount=100,  # $1.00 em centavos
+            currency="usd",
             payment_method=payment_method_id,
             confirm=True
         )
 
-        return jsonify({"mensagem": "Cartão válido para transações!", "setup_intent": setup_intent.id})
+        # Aguardar 5 segundos antes do estorno
+        time.sleep(5)
+
+        # Estornar o pagamento
+        stripe.Refund.create(payment_intent=payment_intent.id)
+
+        return jsonify({"status": "success", "message": "Cartão aprovado!", "payment_intent": payment_intent.id})
 
     except stripe.error.CardError as e:
-        return jsonify({"erro": "Erro no cartão: " + str(e.user_message)}), 400
-    except stripe.error.InvalidRequestError as e:
-        return jsonify({"erro": "Requisição inválida: " + str(e.user_message)}), 400
-    except stripe.error.AuthenticationError:
-        return jsonify({"erro": "Erro de autenticação. Verifique sua chave da Stripe."}), 403
-    except stripe.error.APIConnectionError:
-        return jsonify({"erro": "Erro de conexão com a API da Stripe."}), 500
-    except stripe.error.StripeError:
-        return jsonify({"erro": "Erro desconhecido da Stripe. Tente novamente mais tarde."}), 500
+        return jsonify({"status": "error", "message": str(e.user_message)}), 400
     except Exception as e:
-        return jsonify({"erro": "Erro interno: " + str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001)
-    
+    app.run(host="0.0.0.0", port=5000, debug=False)
