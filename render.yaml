@@ -1,0 +1,10 @@
+services:
+  - name: stripe-backend
+    type: web
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: STRIPE_SECRET_KEY
+        sync: false  # Definir no painel do Render
