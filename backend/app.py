@@ -1,20 +1,12 @@
-import time
 import stripe
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+import os
+import time
 
 app = Flask(__name__)
-CORS(app)  # Permitir requisições do frontend
 
-# Chave secreta do Stripe (definida no ambiente do Render)
-import os
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-stripe.api_key = STRIPE_SECRET_KEY
-
-# Rota para a página inicial
-@app.route("/")
-def home():
-    return jsonify({"message": "API está rodando! Use /pagar para validar cartões."})
+# Definindo a chave secreta do Stripe
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 @app.route("/pagar", methods=["POST"])
 def pagar():
@@ -23,9 +15,9 @@ def pagar():
         payment_method_id = data.get("payment_method_id")
 
         if not payment_method_id:
-            return jsonify({"error": "Nenhum payment_method_id fornecido"}), 400
+            return jsonify({"error": "payment_method_id não fornecido"}), 400
 
-        # Criar pagamento de $1.00
+        # Criar uma PaymentIntent para processar o pagamento
         payment_intent = stripe.PaymentIntent.create(
             amount=100,  # $1.00 em centavos
             currency="usd",
@@ -33,19 +25,34 @@ def pagar():
             confirm=True
         )
 
-        # Aguardar 5 segundos antes do estorno
-        time.sleep(5)
-
-        # Estornar o pagamento
-        stripe.Refund.create(payment_intent=payment_intent.id)
-
-        return jsonify({"status": "success", "message": "Cartão aprovado!", "payment_intent": payment_intent.id})
+        # Verificar se o pagamento foi bem-sucedido
+        if payment_intent.status == 'succeeded':
+            # Aguardar um tempo antes de fazer o estorno (5 segundos)
+            time.sleep(5)
+            
+            # Estorno do pagamento
+            refund = stripe.Refund.create(payment_intent=payment_intent.id)
+            
+            return jsonify({
+                "status": "success",
+                "message": "Cartão válido! Pagamento processado e estornado.",
+                "payment_intent": payment_intent.id,
+                "refund": refund.id
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Pagamento não foi bem-sucedido.",
+                "payment_intent": payment_intent.id
+            }), 400
 
     except stripe.error.CardError as e:
         return jsonify({"status": "error", "message": str(e.user_message)}), 400
+    except stripe.error.StripeError as e:
+        return jsonify({"status": "error", "message": "Erro na Stripe: " + str(e)}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return jsonify({"status": "error", "message": "Erro interno: " + str(e)}), 400
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))  # Usa a porta definida pelo Render
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(debug=True)
+    
