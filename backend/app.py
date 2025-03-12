@@ -8,6 +8,11 @@ app = Flask(__name__)
 # Definindo a chave secreta do Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
+# Rota para a página inicial
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "Bem-vindo à API de pagamento! A API está funcionando corretamente."})
+
 # Rota de verificação de saúde (status)
 @app.route("/status", methods=["GET"])
 def status():
