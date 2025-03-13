@@ -1,5 +1,6 @@
 import stripe
 import os
+import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS  
 
@@ -10,7 +11,7 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"message": "API de ZeroAuth está funcionando corretamente."})
+    return jsonify({"message": "API está funcionando corretamente."})
 
 @app.route("/status", methods=["GET"])
 def status():
@@ -29,14 +30,15 @@ def verificar_cartao():
         if not payment_method_id:
             return jsonify({"error": "payment_method_id não fornecido"}), 400
 
-        # Criar um SetupIntent para validação do cartão sem cobrança
+        # Criar um SetupIntent para validar o cartão sem cobrar
         setup_intent = stripe.SetupIntent.create(
             payment_method=payment_method_id,
-            usage="off_session",  # Pode ser 'off_session' ou 'on_session' dependendo do caso
             confirm=True,
+            usage="off_session",
             return_url="https://magnificent-granita-135e1a.netlify.app/sucesso"
         )
 
+        # Verifica se precisa de autenticação
         if setup_intent.status == 'requires_action':
             return jsonify({
                 "status": "action_required",
@@ -47,14 +49,14 @@ def verificar_cartao():
         elif setup_intent.status == 'succeeded':
             return jsonify({
                 "status": "success",
-                "message": "Cartão válido! Pronto para transações futuras.",
+                "message": "Cartão válido! Nenhuma cobrança foi feita.",
                 "setup_intent": setup_intent.id
             })
 
         else:
             return jsonify({
                 "status": "error",
-                "message": "Não foi possível verificar o cartão.",
+                "message": "Não foi possível validar o cartão.",
                 "setup_intent": setup_intent.id
             }), 400
 
