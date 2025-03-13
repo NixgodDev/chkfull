@@ -1,9 +1,11 @@
 import stripe
-from flask import Flask, request, jsonify
 import os
 import time
+from flask import Flask, request, jsonify
+from flask_cors import CORS  # Importa CORS para permitir requisições do frontend
 
 app = Flask(__name__)
+CORS(app, origins=["https://fastidious-sprite-384fc6.netlify.app"])  # Permitir apenas o seu frontend acessar
 
 # Definindo a chave secreta do Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -17,6 +19,11 @@ def home():
 @app.route("/status", methods=["GET"])
 def status():
     return jsonify({"message": "API está funcionando!"})
+
+# Rota para evitar erro 404 no favicon.ico
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204  # Retorna um status 204 (sem conteúdo)
 
 # Rota de pagamento
 @app.route("/pagar", methods=["POST"])
