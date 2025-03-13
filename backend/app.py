@@ -32,8 +32,8 @@ def pagar():
 
         # Criar uma PaymentIntent com return_url
         payment_intent = stripe.PaymentIntent.create(
-            amount=100,  # $1.00 em centavos
-            currency="usd",
+            amount=100,  # R$1.00 em centavos
+            currency="brl",
             payment_method=payment_method_id,
             confirm=True,
             return_url="https://magnificent-granita-135e1a.netlify.app/sucesso"  # Defina um return_url válido
