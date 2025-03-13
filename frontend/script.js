@@ -10,8 +10,11 @@ card.mount('#card-element');
 document.getElementById('payment-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   
-  // Criação de um payment method
-  const {token, error} = await stripe.createPaymentMethod('card', card);
+  // Criar um Payment Method corretamente
+  const {paymentMethod, error} = await stripe.createPaymentMethod({
+    type: 'card',
+    card: card,
+  });
 
   if (error) {
     console.error('Erro ao criar Payment Method:', error);
@@ -20,7 +23,7 @@ document.getElementById('payment-form').addEventListener('submit', async (event)
   }
 
   // Enviar o payment_method_id para o backend
-  const paymentMethodId = token.id;
+  const paymentMethodId = paymentMethod.id;
 
   // Agora faça o fetch para o backend
   const API_URL = 'https://chkfull.onrender.com/pagar';  // URL do backend no Render
