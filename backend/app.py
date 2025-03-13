@@ -2,30 +2,25 @@ import stripe
 import os
 import time
 from flask import Flask, request, jsonify
-from flask_cors import CORS  # Importa CORS para permitir requisições do frontend
+from flask_cors import CORS  
 
 app = Flask(__name__)
-CORS(app, origins=["https://magnificent-granita-135e1a.netlify.app"])  # Atualize com o novo domínio do Netlify
+CORS(app, origins=["https://magnificent-granita-135e1a.netlify.app"])
 
-# Definindo a chave secreta do Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-# Rota para a página inicial
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"message": "Bem-vindo à API de pagamento! A API está funcionando corretamente."})
+    return jsonify({"message": "API está funcionando corretamente."})
 
-# Rota de verificação de saúde (status)
 @app.route("/status", methods=["GET"])
 def status():
     return jsonify({"message": "API está funcionando!"})
 
-# Rota para evitar erro 404 no favicon.ico
 @app.route('/favicon.ico')
 def favicon():
-    return '', 204  # Retorna um status 204 (sem conteúdo)
+    return '', 204
 
-# Rota de pagamento
 @app.route("/pagar", methods=["POST"])
 def pagar():
     try:
@@ -35,20 +30,24 @@ def pagar():
         if not payment_method_id:
             return jsonify({"error": "payment_method_id não fornecido"}), 400
 
-        # Criar uma PaymentIntent para processar o pagamento
+        # Criar uma PaymentIntent com return_url
         payment_intent = stripe.PaymentIntent.create(
             amount=100,  # $1.00 em centavos
             currency="usd",
             payment_method=payment_method_id,
-            confirm=True
+            confirm=True,
+            return_url="https://magnificent-granita-135e1a.netlify.app/sucesso"  # Defina um return_url válido
         )
 
-        # Verificar se o pagamento foi bem-sucedido
-        if payment_intent.status == 'succeeded':
-            # Aguardar um tempo antes de fazer o estorno (5 segundos)
+        if payment_intent.status == 'requires_action':
+            return jsonify({
+                "status": "action_required",
+                "message": "Autenticação necessária. Redirecionando...",
+                "next_action": payment_intent.next_action
+            })
+
+        elif payment_intent.status == 'succeeded':
             time.sleep(5)
-            
-            # Estorno do pagamento
             refund = stripe.Refund.create(payment_intent=payment_intent.id)
             
             return jsonify({
@@ -57,6 +56,7 @@ def pagar():
                 "payment_intent": payment_intent.id,
                 "refund": refund.id
             })
+
         else:
             return jsonify({
                 "status": "error",
