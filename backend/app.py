@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS  # Importa CORS para permitir requisições do frontend
 
 app = Flask(__name__)
-CORS(app, origins=["https://fastidious-sprite-384fc6.netlify.app"])  # Permitir apenas o seu frontend acessar
+CORS(app, origins=["https://magnificent-granita-135e1a.netlify.app"])  # Atualize com o novo domínio do Netlify
 
 # Definindo a chave secreta do Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
