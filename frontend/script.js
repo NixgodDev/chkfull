@@ -10,10 +10,10 @@ card.mount('#card-element');
 document.getElementById('payment-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   
-  // Criar um Payment Method corretamente
+  // Criação de um payment method
   const {paymentMethod, error} = await stripe.createPaymentMethod({
     type: 'card',
-    card: card,
+    card: card
   });
 
   if (error) {
