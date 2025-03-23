@@ -7,7 +7,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Habilita CORS apenas para o seu domínio de produção
-const allowedOrigins = ['https://seu-dominio.com']; // Substitua pelo domínio real
+const allowedOrigins = ['https://chkfull-1.onrender.com']; // Substitua pelo domínio real
 app.use(cors({ origin: allowedOrigins }));
 
 app.use(bodyParser.json());
