@@ -91,7 +91,7 @@
 
         const tokens = [];
 
-        // Gera um token para cada cartão
+        // Processa cada cartão
         for (const cartao of cartoesArray) {
           const [numeroCartao, mesValidade, anoValidade, cvc] = cartao.split('|');
 
@@ -99,18 +99,8 @@
             throw new Error(`Formato do cartão inválido: ${cartao}. Use: número|mês|ano|cvc`);
           }
 
-          // Cria um elemento de cartão temporário para gerar o token
-          const cardElement = stripe.elements().create('card', {
-            style: {
-              base: {
-                fontSize: '16px',
-                color: '#32325d',
-              },
-            },
-          });
-
           // Gera o token para o cartão
-          const { token, error } = await stripe.createToken(cardElement, {
+          const { token, error } = await stripe.createToken('card', {
             number: numeroCartao,
             exp_month: mesValidade,
             exp_year: anoValidade,
