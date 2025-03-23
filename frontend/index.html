@@ -1,122 +1,74 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teste de Cartões 3D Secure</title>
-  <style>
-    textarea {
-      width: 100%;
-      height: 150px;
-      margin-bottom: 10px;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-    }
-    .resultado {
-      margin-top: 20px;
-    }
-    .aprovados, .reprovados, .erros {
-      margin-top: 20px;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-    }
-    .aprovados {
-      background-color: #e6f4ea; /* Verde claro */
-    }
-    .reprovados {
-      background-color: #f8d7da; /* Vermelho claro */
-    }
-    .erros {
-      background-color: #fff3cd; /* Amarelo claro */
-    }
-  </style>
-</head>
-<body>
-  <h1>Teste de Cartões 3D Secure</h1>
-  <form id="testar-cartoes">
-    <label for="cartoes">Insira os cartões (um por linha, no formato NÚMERO|MÊS|ANO|CVV):</label><br>
-    <textarea id="cartoes" name="cartoes" placeholder="5464790001294275|09|2042|295" required></textarea><br>
-    <button type="submit">Testar Cartões</button>
-  </form>
+const form = document.getElementById('testar-cartoes');
+const aprovadosDiv = document.getElementById('aprovados');
+const reprovadosDiv = document.getElementById('reprovados');
+const errosDiv = document.getElementById('erros');
 
-  <div class="resultado" id="resultado">
-    <div class="aprovados" id="aprovados"></div>
-    <div class="reprovados" id="reprovados"></div>
-    <div class="erros" id="erros"></div>
-  </div>
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
 
-  <script>
-    const form = document.getElementById('testar-cartoes');
-    const aprovadosDiv = document.getElementById('aprovados');
-    const reprovadosDiv = document.getElementById('reprovados');
-    const errosDiv = document.getElementById('erros');
+  const cartoes = document.getElementById('cartoes').value;
 
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
+  // Limpa os resultados anteriores
+  aprovadosDiv.innerHTML = '';
+  reprovadosDiv.innerHTML = '';
+  errosDiv.innerHTML = '';
 
-      const cartoes = document.getElementById('cartoes').value;
-
-      try {
-        const response = await fetch('/verificar-3ds', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ cartoes }),
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          // Limpa os resultados anteriores
-          aprovadosDiv.innerHTML = '';
-          reprovadosDiv.innerHTML = '';
-          errosDiv.innerHTML = '';
-
-          // Filtra os resultados
-          const aprovados = data.resultados.filter((resultado) => resultado.status === 'Cadastrado no 3D Secure');
-          const reprovados = data.resultados.filter((resultado) => resultado.status === 'Não cadastrado no 3D Secure');
-          const erros = data.resultados.filter((resultado) => resultado.status.startsWith('Erro ao verificar'));
-
-          // Exibe os aprovados
-          if (aprovados.length > 0) {
-            aprovadosDiv.innerHTML = '<h2>Cartões Aprovados:</h2>';
-            aprovados.forEach((resultado) => {
-              aprovadosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.cartao} | <strong>Status:</strong> ${resultado.status}</p>`;
-            });
-          } else {
-            aprovadosDiv.innerHTML = '<p>Nenhum cartão aprovado.</p>';
-          }
-
-          // Exibe os reprovados
-          if (reprovados.length > 0) {
-            reprovadosDiv.innerHTML = '<h2>Cartões Reprovados:</h2>';
-            reprovados.forEach((resultado) => {
-              reprovadosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.cartao} | <strong>Status:</strong> ${resultado.status}</p>`;
-            });
-          } else {
-            reprovadosDiv.innerHTML = '<p>Nenhum cartão reprovado.</p>';
-          }
-
-          // Exibe os erros
-          if (erros.length > 0) {
-            errosDiv.innerHTML = '<h2>Erros:</h2>';
-            erros.forEach((resultado) => {
-              errosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.cartao} | <strong>Erro:</strong> ${resultado.status}</p>`;
-            });
-          } else {
-            errosDiv.innerHTML = '<p>Nenhum erro encontrado.</p>';
-          }
-        } else {
-          errosDiv.innerHTML = `<p style="color: red;">Erro: ${data.message}</p>`;
-        }
-      } catch (error) {
-        errosDiv.innerHTML = `<p style="color: red;">Erro ao enviar requisição: ${error.message}</p>`;
-      }
+  try {
+    const response = await fetch('/verificar-3ds', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ cartoes }),
     });
-  </script>
-</body>
-</html>
+
+    // Verifica se a resposta é válida
+    if (!response.ok) {
+      throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+    }
+
+    // Tenta processar a resposta como JSON
+    const data = await response.json();
+
+    if (data.success) {
+      // Filtra os resultados
+      const aprovados = data.resultados.filter((resultado) => resultado.status === 'Cadastrado no 3D Secure');
+      const reprovados = data.resultados.filter((resultado) => resultado.status === 'Não cadastrado no 3D Secure');
+      const erros = data.resultados.filter((resultado) => resultado.status.startsWith('Erro ao verificar'));
+
+      // Exibe os aprovados
+      if (aprovados.length > 0) {
+        aprovadosDiv.innerHTML = '<h2>Cartões Aprovados:</h2>';
+        aprovados.forEach((resultado) => {
+          aprovadosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.cartao} | <strong>Status:</strong> ${resultado.status}</p>`;
+        });
+      } else {
+        aprovadosDiv.innerHTML = '<p>Nenhum cartão aprovado.</p>';
+      }
+
+      // Exibe os reprovados
+      if (reprovados.length > 0) {
+        reprovadosDiv.innerHTML = '<h2>Cartões Reprovados:</h2>';
+        reprovados.forEach((resultado) => {
+          reprovadosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.cartao} | <strong>Status:</strong> ${resultado.status}</p>`;
+        });
+      } else {
+        reprovadosDiv.innerHTML = '<p>Nenhum cartão reprovado.</p>';
+      }
+
+      // Exibe os erros
+      if (erros.length > 0) {
+        errosDiv.innerHTML = '<h2>Erros:</h2>';
+        erros.forEach((resultado) => {
+          errosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.cartao} | <strong>Erro:</strong> ${resultado.status}</p>`;
+        });
+      } else {
+        errosDiv.innerHTML = '<p>Nenhum erro encontrado.</p>';
+      }
+    } else {
+      errosDiv.innerHTML = `<p style="color: red;">Erro: ${data.message}</p>`;
+    }
+  } catch (error) {
+    errosDiv.innerHTML = `<p style="color: red;">Erro ao enviar requisição: ${error.message}</p>`;
+  }
+});
