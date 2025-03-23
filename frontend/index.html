@@ -86,7 +86,7 @@
           document.getElementById("card-errors").textContent = error.message;
         } else {
           // Envia o PaymentMethod para o backend para criar o PaymentIntent
-          const response = await fetch("/criar-payment-intent", {
+          const response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
