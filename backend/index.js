@@ -31,7 +31,7 @@ app.post('/criar-payment-intent', async (req, res) => {
     });
 
     // Retorna o clientSecret para o front-end
-    res.status(200).json({ clientSecret: paymentIntent.client_secret });
+    res.status(200).json({ success: true, clientSecret: paymentIntent.client_secret });
   } catch (error) {
     console.error('Erro ao criar PaymentIntent:', error.message);
     res.status(500).json({ success: false, message: 'Erro ao criar PaymentIntent.', error: error.message });
