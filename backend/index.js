@@ -25,12 +25,17 @@ app.post('/criar-payment-intent', async (req, res) => {
       amount: amount,
       currency: 'brl',
       payment_method: paymentMethod,
-      confirmation_method: 'automatic', // Agora o Stripe confirma sozinho
-      confirm: true, // Confirma automaticamente
+      confirmation_method: 'manual',  // Aguarda confirmação manual
+      confirm: true,  // Confirma automaticamente
       description: 'Pagamento via Stripe',
     });
 
-    res.status(200).json({ success: true, paymentIntentId: paymentIntent.id, status: paymentIntent.status });
+    // Retorna o client_secret para o frontend
+    res.status(200).json({
+      success: true,
+      paymentIntentId: paymentIntent.id,
+      clientSecret: paymentIntent.client_secret,
+    });
   } catch (error) {
     console.error('Erro ao criar PaymentIntent:', error.message);
     res.status(500).json({ success: false, message: 'Erro ao criar PaymentIntent.', error: error.message });
