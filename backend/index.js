@@ -12,7 +12,7 @@ app.use(cors({ origin: allowedOrigins }));
 
 app.use(bodyParser.json());
 
-// Rota para criar um PaymentIntent e confirmar automaticamente
+// Rota para criar um PaymentIntent e confirmar manualmente
 app.post('/criar-payment-intent', async (req, res) => {
   const { paymentMethod, amount } = req.body;
 
@@ -25,8 +25,8 @@ app.post('/criar-payment-intent', async (req, res) => {
       amount: amount,
       currency: 'brl',
       payment_method: paymentMethod,
-      confirmation_method: 'manual',  // Aguarda confirmação manual
-      confirm: true,  // Confirma automaticamente
+      confirmation_method: 'manual',  // Aguarda confirmação manual no frontend
+      confirm: false,  // Não confirma automaticamente
       description: 'Pagamento via Stripe',
     });
 
