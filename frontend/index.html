@@ -61,15 +61,12 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", async function() {
-      // Inicializa o Stripe com a chave pública real
-      const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7");  // Substitua pela chave real
+      const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7");  // Substitua pela chave pública real
       const elements = stripe.elements();
 
-      // Cria o campo do cartão
       const card = elements.create("card", { hidePostalCode: true });
       card.mount("#card-element");
 
-      // Habilita o botão quando o Stripe Elements carrega
       card.on("change", function(event) {
         document.getElementById("pagarBtn").disabled = event.empty;
         document.getElementById("card-errors").textContent = event.error ? event.error.message : "";
@@ -103,9 +100,10 @@
           const data = await response.json();
 
           if (data.success) {
-            const paymentIntent = data.paymentIntentId;
-            // Confirma o pagamento no frontend, verificando o status
-            const confirmResult = await stripe.confirmCardPayment(paymentIntent, {
+            const clientSecret = data.clientSecret; // O client_secret do backend
+
+            // Confirmando o pagamento com o client_secret
+            const confirmResult = await stripe.confirmCardPayment(clientSecret, {
               payment_method: paymentMethod.id,
             });
 
