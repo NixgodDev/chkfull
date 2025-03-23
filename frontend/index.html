@@ -1,1 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagamento Seguro</title>
+  <script src="https://js.stripe.com/v3/"></script> <!-- Inclui Stripe.js -->
+  <style>
+    .container {
+      max-width: 400px;
+      margin: 50px auto;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      font-size: 20px;
+    }
+    #card-element {
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    button {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .erro {
+      color: red;
+    }
+    .sucesso {
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Pagar com Cartão</h1>
+    <form id="payment-form">
+      <div id="card-element">
+        <!-- O Stripe Elements será injetado aqui -->
+      </div>
+      <button id="pagarBtn" disabled>Pagar R$ 10,00</button>
+      <div id="card-errors" class="erro" role="alert"></div>
+    </form>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async function() {
+      const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7");  // Substitua pela chave pública real
+      const elements = stripe.elements();
+
+      const card = elements.create("card", { hidePostalCode: true });
+      card.mount("#card-element");
+
+      card.on("change", function(event) {
+        document.getElementById("pagarBtn").disabled = event.empty;
+        document.getElementById("card-errors").textContent = event.error ? event.error.message : "";
+      });
+
+      // Evento de pagamento
+      document.getElementById("payment-form").addEventListener("submit", async function(event) {
+        event.preventDefault();
+
+        // Cria o PaymentMethod com o cartão
+        const { paymentMethod, error } = await stripe.createPaymentMethod({
+          type: "card",
+          card: card
+        });
+
+        if (error) {
+          document.getElementById("card-errors").textContent = error.message;
+        } else {
+          // Envia o PaymentMethod para o backend para criar o PaymentIntent
+          const response = await fetch("/criar-payment-intent", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              paymentMethod: paymentMethod.id,
+              amount: 1000, // Valor do pagamento em centavos (R$ 10,00)
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            const clientSecret = data.clientSecret; // O client_secret do backend
+
+            // Confirmando o pagamento com o client_secret
+            const confirmResult = await stripe.confirmCardPayment(clientSecret, {
+              payment_method: paymentMethod.id,
+            });
+
+            if (confirmResult.error) {
+              // O pagamento falhou
+              document.getElementById("card-errors").textContent = confirmResult.error.message;
+            } else {
+              // Verifique se o pagamento foi realmente concluído com sucesso
+              if (confirmResult.paymentIntent.status === 'succeeded') {
+                alert('Pagamento realizado com sucesso!');
+              } else {
+                document.getElementById("card-errors").textContent = 'Erro no pagamento.';
+              }
+            }
+          } else {
+            document.getElementById("card-errors").textContent = data.message;
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>
 
