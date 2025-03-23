@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pagamento Seguro com Stripe</title>
-  <script src="https://js.stripe.com/v3/"></script> <!-- Inclui o Stripe.js -->
+  <title>Pagamento Seguro</title>
+  <script src="https://js.stripe.com/v3/"></script> <!-- Inclui Stripe.js -->
   <style>
     .container {
       max-width: 400px;
@@ -39,10 +39,6 @@
     button:hover {
       background-color: #0056b3;
     }
-    .resultados {
-      margin-top: 20px;
-      text-align: center;
-    }
     .erro {
       color: red;
     }
@@ -56,26 +52,44 @@
     <h1>Pagar com Cartão</h1>
     <form id="payment-form">
       <div id="card-element">
-        <!-- Stripe Elements será injetado aqui -->
+        <!-- O Stripe Elements será injetado aqui -->
       </div>
-      <button id="pagarBtn">Pagar R$ 10,00</button>
+      <button id="pagarBtn" disabled>Pagar R$ 10,00</button>
       <div id="card-errors" class="erro" role="alert"></div>
     </form>
-
-    <div class="resultados">
-      <div id="resultadoDiv"></div>
-    </div>
   </div>
 
   <script>
-    // Inicializa o Stripe com a chave pública de produção
-    const stripe = Stripe('pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7'); // 🔹 Substitua pela sua chave pública real
+    document.addEventListener("DOMContentLoaded", async function() {
+      // Inicializa o Stripe com a chave pública real
+      const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7");  // 🔹 Substitua pela chave real
+      const elements = stripe.elements();
 
-    // Configura o Stripe Elements
-    const elements = stripe.elements();
-    const cardElement = elements.create('card');
-    cardElement.mount('#card-element');
+      // Cria o campo do cartão
+      const card = elements.create("card", { hidePostalCode: true });
+      card.mount("#card-element");
 
-    // Referências ao DOM
-    const form = document.get
-    
+      // Habilita o botão quando o Stripe Elements carrega
+      card.on("change", function(event) {
+        document.getElementById("pagarBtn").disabled = event.empty;
+        document.getElementById("card-errors").textContent = event.error ? event.error.message : "";
+      });
+
+      // Evento de pagamento
+      document.getElementById("payment-form").addEventListener("submit", async function(event) {
+        event.preventDefault();
+        const { paymentMethod, error } = await stripe.createPaymentMethod({
+          type: "card",
+          card: card
+        });
+
+        if (error) {
+          document.getElementById("card-errors").textContent = error.message;
+        } else {
+          alert("Cartão adicionado com sucesso! ID: " + paymentMethod.id);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
