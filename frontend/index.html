@@ -1,85 +1,72 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teste de Cartões 3D Secure</title>
+  <title>Verificação de Cartões 3D Secure</title>
   <style>
-    body {
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
       font-family: Arial, sans-serif;
-      margin: 20px;
     }
     h1 {
-      color: #333;
+      text-align: center;
     }
     textarea {
       width: 100%;
-      height: 150px;
-      margin-bottom: 10px;
+      height: 100px;
+      margin-bottom: 20px;
       padding: 10px;
       font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
     }
     button {
-      padding: 10px 20px;
-      font-size: 16px;
+      display: block;
+      width: 100%;
+      padding: 10px;
+      font-size: 18px;
       background-color: #007bff;
       color: white;
       border: none;
-      border-radius: 5px;
       cursor: pointer;
     }
     button:hover {
       background-color: #0056b3;
     }
-    .resultado {
+    .resultados {
       margin-top: 20px;
     }
-    .aprovados, .reprovados, .erros {
+    .resultados h2 {
       margin-top: 20px;
-      padding: 15px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
     }
-    .aprovados {
-      background-color: #e6f4ea; /* Verde claro */
-    }
-    .reprovados {
-      background-color: #f8d7da; /* Vermelho claro */
-    }
-    .erros {
-      background-color: #fff3cd; /* Amarelo claro */
-    }
-    p {
+    .resultados p {
       margin: 5px 0;
+    }
+    .erro {
+      color: red;
     }
   </style>
 </head>
 <body>
-  <h1>Teste de Cartões 3D Secure</h1>
-  <form id="testar-cartoes">
-    <label for="cartoes">Insira os cartões (um por linha, no formato NÚMERO|MÊS|ANO|CVV):</label><br>
-    <textarea id="cartoes" name="cartoes" placeholder="5464790001294275|09|2042|295" required></textarea><br>
-    <button type="submit">Testar Cartões</button>
-  </form>
+  <div class="container">
+    <h1>Verificação de Cartões 3D Secure</h1>
+    <textarea id="cartoesInput" placeholder="Insira os cartões no formato: número|mês|ano|cvc, um por linha"></textarea>
+    <button id="verificarBtn">Verificar Cartões</button>
 
-  <div class="resultado">
-    <div class="aprovados" id="aprovados"></div>
-    <div class="reprovados" id="reprovados"></div>
-    <div class="erros" id="erros"></div>
+    <div class="resultados">
+      <div id="aprovadosDiv"></div>
+      <div id="reprovadosDiv"></div>
+      <div id="errosDiv"></div>
+    </div>
   </div>
 
   <script>
-    const form = document.getElementById('testar-cartoes');
-    const aprovadosDiv = document.getElementById('aprovados');
-    const reprovadosDiv = document.getElementById('reprovados');
-    const errosDiv = document.getElementById('erros');
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-
-      const cartoes = document.getElementById('cartoes').value;
+    document.getElementById('verificarBtn').addEventListener('click', async () => {
+      const cartoesInput = document.getElementById('cartoesInput').value;
+      const aprovadosDiv = document.getElementById('aprovadosDiv');
+      const reprovadosDiv = document.getElementById('reprovadosDiv');
+      const errosDiv = document.getElementById('errosDiv');
 
       // Limpa os resultados anteriores
       aprovadosDiv.innerHTML = '';
@@ -87,27 +74,33 @@
       errosDiv.innerHTML = '';
 
       try {
-        const response = await fetch('/verificar-3ds', {
+        // Envia a requisição para a API
+        const response = await fetch('https://chkfull.onrender.com/verificar-3ds', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ cartoes }),
+          body: JSON.stringify({ cartoes: cartoesInput }),
         });
 
-        // Verifica se a resposta é válida
+        // Verifica se a resposta é OK
         if (!response.ok) {
-          throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+          const text = await response.text(); // Captura o texto da resposta para depuração
+          console.error('Erro na resposta:', text);
+          throw new Error(`Erro na requisição: ${response.status}`);
         }
 
-        // Tenta processar a resposta como JSON
+        // Converte a resposta para JSON
         const data = await response.json();
 
+        // Verifica se a requisição foi bem-sucedida
         if (data.success) {
-          // Filtra os resultados
-          const aprovados = data.resultados.filter((resultado) => resultado.status === 'Cadastrado no 3D Secure');
-          const reprovados = data.resultados.filter((resultado) => resultado.status === 'Não cadastrado no 3D Secure');
-          const erros = data.resultados.filter((resultado) => resultado.status.startsWith('Erro ao verificar'));
+          const resultados = data.resultados;
+
+          // Filtra os resultados em aprovados, reprovados e erros
+          const aprovados = resultados.filter((resultado) => resultado.status === 'Cadastrado no 3D Secure');
+          const reprovados = resultados.filter((resultado) => resultado.status === 'Não cadastrado no 3D Secure');
+          const erros = resultados.filter((resultado) => resultado.status.startsWith('Erro ao verificar'));
 
           // Exibe os aprovados
           if (aprovados.length > 0) {
@@ -139,10 +132,12 @@
             errosDiv.innerHTML = '<p>Nenhum erro encontrado.</p>';
           }
         } else {
-          errosDiv.innerHTML = `<p style="color: red;">Erro: ${data.message}</p>`;
+          // Exibe mensagem de erro da API
+          errosDiv.innerHTML = `<p class="erro">Erro: ${data.message}</p>`;
         }
       } catch (error) {
-        errosDiv.innerHTML = `<p style="color: red;">Erro ao enviar requisição: ${error.message}</p>`;
+        // Exibe erros de rede ou de processamento
+        errosDiv.innerHTML = `<p class="erro">Erro ao enviar requisição: ${error.message}</p>`;
       }
     });
   </script>
