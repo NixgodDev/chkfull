@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stripe Elements</title>
+  <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+  <form id="payment-form">
+    <div id="card-element"></div>
+    <button id="submit-button">Verificar Cartão</button>
+  </form>
+
+  <script>
+    const stripe = Stripe('sua_chave_publica_do_stripe');
+
+    const elements = stripe.elements();
+    const cardElement = elements.create('card');
+    cardElement.mount('#card-element');
+
+    const form = document.getElementById('payment-form');
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const { token, error } = await stripe.createToken(cardElement);
+
+      if (error) {
+        console.error('Erro ao criar token:', error);
+      } else {
+        // Envie o token para o backend
+        fetch('/verificar-3ds', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token: token.id }),
+        })
+        .then(response => response.json())
+        .then(data => console.log(data))
+        .catch(error => console.error('Erro ao enviar token:', error));
+      }
+    });
+  </script>
+</body>
+</html>
