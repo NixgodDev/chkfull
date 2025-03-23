@@ -14,10 +14,13 @@ const getRandomInterval = () => Math.floor(Math.random() * (8000 - 5000 + 1)) + 
 
 // Rota para verificar 3D Secure
 app.post('/verificar-3ds', async (req, res) => {
+  console.log('Requisição recebida:', req.body); // Log da requisição recebida
+
   const { cartoes } = req.body;
 
   // Validação dos dados de entrada
   if (!cartoes || typeof cartoes !== 'string') {
+    console.error('Lista de cartões não fornecida ou em formato inválido.');
     return res.status(400).json({ success: false, message: 'Lista de cartões não fornecida ou em formato inválido.' });
   }
 
@@ -25,10 +28,12 @@ app.post('/verificar-3ds', async (req, res) => {
     const cartoesArray = cartoes.split('\n').filter((line) => line.trim() !== '');
 
     if (cartoesArray.length === 0) {
+      console.error('Nenhum cartão válido fornecido.');
       return res.status(400).json({ success: false, message: 'Nenhum cartão válido fornecido.' });
     }
 
     if (cartoesArray.length > 100) {
+      console.error('Limite de cartões excedido.');
       return res.status(400).json({ success: false, message: 'O limite é de 100 cartões por requisição.' });
     }
 
@@ -41,6 +46,7 @@ app.post('/verificar-3ds', async (req, res) => {
 
       // Validação dos dados do cartão
       if (!numeroCartao || !mesValidade || !anoValidade || !cvc) {
+        console.error(`Formato do cartão inválido: ${cartao}`);
         resultados.push({ cartao, status: 'Formato do cartão inválido. Use: número|mês|ano|cvc' });
         continue; // Pula para o próximo cartão
       }
@@ -73,6 +79,7 @@ app.post('/verificar-3ds', async (req, res) => {
     }
 
     // Retorna os resultados
+    console.log('Resultados:', resultados); // Log dos resultados
     res.status(200).json({ success: true, resultados });
   } catch (error) {
     console.error('Erro ao processar a requisição:', error.message);
