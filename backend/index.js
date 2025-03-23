@@ -16,53 +16,48 @@ const getRandomInterval = () => Math.floor(Math.random() * (8000 - 5000 + 1)) + 
 app.post('/verificar-3ds', async (req, res) => {
   console.log('Requisição recebida:', req.body); // Log da requisição recebida
 
-  const { tokens } = req.body; // Recebe uma lista de tokens gerados pelo Stripe.js
+  const { paymentMethods } = req.body; // Recebe uma lista de IDs de PaymentMethods
 
   // Validação dos dados de entrada
-  if (!tokens || !Array.isArray(tokens)) {
-    console.error('Lista de tokens não fornecida ou em formato inválido.');
-    return res.status(400).json({ success: false, message: 'Lista de tokens não fornecida ou em formato inválido.' });
+  if (!paymentMethods || !Array.isArray(paymentMethods)) {
+    console.error('Lista de PaymentMethods não fornecida ou em formato inválido.');
+    return res.status(400).json({ success: false, message: 'Lista de PaymentMethods não fornecida ou em formato inválido.' });
   }
 
-  if (tokens.length === 0) {
-    console.error('Nenhum token fornecido.');
-    return res.status(400).json({ success: false, message: 'Nenhum token fornecido.' });
+  if (paymentMethods.length === 0) {
+    console.error('Nenhum PaymentMethod fornecido.');
+    return res.status(400).json({ success: false, message: 'Nenhum PaymentMethod fornecido.' });
   }
 
-  if (tokens.length > 100) {
-    console.error('Limite de tokens excedido.');
-    return res.status(400).json({ success: false, message: 'O limite é de 100 tokens por requisição.' });
+  if (paymentMethods.length > 100) {
+    console.error('Limite de PaymentMethods excedido.');
+    return res.status(400).json({ success: false, message: 'O limite é de 100 PaymentMethods por requisição.' });
   }
 
   const resultados = [];
 
   try {
-    // Processa cada token com um intervalo de 5 a 8 segundos
-    for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i];
+    // Processa cada PaymentMethod com um intervalo de 5 a 8 segundos
+    for (let i = 0; i < paymentMethods.length; i++) {
+      const paymentMethodId = paymentMethods[i];
 
       try {
-        // Cria um PaymentMethod usando o token
-        const paymentMethod = await stripe.paymentMethods.create({
-          type: 'card',
-          card: {
-            token: token, // Usa o token gerado pelo Stripe.js
-          },
-        });
+        // Recupera o PaymentMethod usando o ID
+        const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
 
         // Verifica se o cartão suporta 3D Secure
         if (paymentMethod.card.three_d_secure_usage.supported) {
-          resultados.push({ token, status: 'Cadastrado no 3D Secure' });
+          resultados.push({ paymentMethod: paymentMethodId, status: 'Cadastrado no 3D Secure' });
         } else {
-          resultados.push({ token, status: 'Não cadastrado no 3D Secure' });
+          resultados.push({ paymentMethod: paymentMethodId, status: 'Não cadastrado no 3D Secure' });
         }
       } catch (error) {
-        console.error(`Erro ao processar o token ${token}:`, error.message);
-        resultados.push({ token, status: `Erro ao verificar: ${error.message}` });
+        console.error(`Erro ao processar o PaymentMethod ${paymentMethodId}:`, error.message);
+        resultados.push({ paymentMethod: paymentMethodId, status: `Erro ao verificar: ${error.message}` });
       }
 
-      // Aguarda um intervalo aleatório entre 5 e 8 segundos antes de processar o próximo token
-      if (i < tokens.length - 1) {
+      // Aguarda um intervalo aleatório entre 5 e 8 segundos antes de processar o próximo PaymentMethod
+      if (i < paymentMethods.length - 1) {
         await new Promise((resolve) => setTimeout(resolve, getRandomInterval()));
       }
     }
@@ -72,7 +67,7 @@ app.post('/verificar-3ds', async (req, res) => {
     res.status(200).json({ success: true, resultados });
   } catch (error) {
     console.error('Erro ao processar a requisição:', error.message);
-    res.status(500).json({ success: false, message: 'Erro ao processar os tokens.', error: error.message });
+    res.status(500).json({ success: false, message: 'Erro ao processar os PaymentMethods.', error: error.message });
   }
 });
 
