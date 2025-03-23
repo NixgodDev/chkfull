@@ -2,42 +2,64 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Stripe Elements</title>
-  <script src="https://js.stripe.com/v3/"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste de Cartões 3D Secure</title>
+  <style>
+    textarea {
+      width: 100%;
+      height: 150px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+    .resultado {
+      margin-top: 20px;
+    }
+  </style>
 </head>
 <body>
-  <form id="payment-form">
-    <div id="card-element"></div>
-    <button id="submit-button">Verificar Cartão</button>
+  <h1>Teste de Cartões 3D Secure</h1>
+  <form id="testar-cartoes">
+    <label for="cartoes">Insira os cartões (um por linha, no formato NÚMERO|MÊS|ANO|CVV):</label><br>
+    <textarea id="cartoes" name="cartoes" placeholder="5464790001294275|09|2042|295" required></textarea><br>
+    <button type="submit">Testar Cartões</button>
   </form>
 
+  <div class="resultado" id="resultado"></div>
+
   <script>
-    const stripe = Stripe('sua_chave_publica_do_stripe');
+    const form = document.getElementById('testar-cartoes');
+    const resultadoDiv = document.getElementById('resultado');
 
-    const elements = stripe.elements();
-    const cardElement = elements.create('card');
-    cardElement.mount('#card-element');
-
-    const form = document.getElementById('payment-form');
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
 
-      const { token, error } = await stripe.createToken(cardElement);
+      const cartoes = document.getElementById('cartoes').value;
 
-      if (error) {
-        console.error('Erro ao criar token:', error);
-      } else {
-        // Envie o token para o backend
-        fetch('/verificar-3ds', {
+      try {
+        const response = await fetch('/verificar-3ds', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ token: token.id }),
-        })
-        .then(response => response.json())
-        .then(data => console.log(data))
-        .catch(error => console.error('Erro ao enviar token:', error));
+          body: JSON.stringify({ cartoes }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          let resultadosHTML = '<h2>Resultados:</h2>';
+          data.resultados.forEach((resultado) => {
+            resultadosHTML += `<p><strong>Cartão:</strong> ${resultado.cartao} | <strong>Status:</strong> ${resultado.status}</p>`;
+          });
+          resultadoDiv.innerHTML = resultadosHTML;
+        } else {
+          resultadoDiv.innerHTML = `<p style="color: red;">Erro: ${data.message}</p>`;
+        }
+      } catch (error) {
+        resultadoDiv.innerHTML = `<p style="color: red;">Erro ao enviar requisição: ${error.message}</p>`;
       }
     });
   </script>
