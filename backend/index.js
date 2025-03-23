@@ -16,64 +16,53 @@ const getRandomInterval = () => Math.floor(Math.random() * (8000 - 5000 + 1)) + 
 app.post('/verificar-3ds', async (req, res) => {
   console.log('Requisição recebida:', req.body); // Log da requisição recebida
 
-  const { cartoes } = req.body;
+  const { tokens } = req.body; // Recebe uma lista de tokens gerados pelo Stripe.js
 
   // Validação dos dados de entrada
-  if (!cartoes || typeof cartoes !== 'string') {
-    console.error('Lista de cartões não fornecida ou em formato inválido.');
-    return res.status(400).json({ success: false, message: 'Lista de cartões não fornecida ou em formato inválido.' });
+  if (!tokens || !Array.isArray(tokens)) {
+    console.error('Lista de tokens não fornecida ou em formato inválido.');
+    return res.status(400).json({ success: false, message: 'Lista de tokens não fornecida ou em formato inválido.' });
   }
 
+  if (tokens.length === 0) {
+    console.error('Nenhum token fornecido.');
+    return res.status(400).json({ success: false, message: 'Nenhum token fornecido.' });
+  }
+
+  if (tokens.length > 100) {
+    console.error('Limite de tokens excedido.');
+    return res.status(400).json({ success: false, message: 'O limite é de 100 tokens por requisição.' });
+  }
+
+  const resultados = [];
+
   try {
-    const cartoesArray = cartoes.split('\n').filter((line) => line.trim() !== '');
-
-    if (cartoesArray.length === 0) {
-      console.error('Nenhum cartão válido fornecido.');
-      return res.status(400).json({ success: false, message: 'Nenhum cartão válido fornecido.' });
-    }
-
-    if (cartoesArray.length > 100) {
-      console.error('Limite de cartões excedido.');
-      return res.status(400).json({ success: false, message: 'O limite é de 100 cartões por requisição.' });
-    }
-
-    const resultados = [];
-
-    // Processa cada cartão com um intervalo de 5 a 8 segundos
-    for (let i = 0; i < cartoesArray.length; i++) {
-      const cartao = cartoesArray[i];
-      const [numeroCartao, mesValidade, anoValidade, cvc] = cartao.split('|');
-
-      // Validação dos dados do cartão
-      if (!numeroCartao || !mesValidade || !anoValidade || !cvc) {
-        console.error(`Formato do cartão inválido: ${cartao}`);
-        resultados.push({ cartao, status: 'Formato do cartão inválido. Use: número|mês|ano|cvc' });
-        continue; // Pula para o próximo cartão
-      }
+    // Processa cada token com um intervalo de 5 a 8 segundos
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
 
       try {
+        // Cria um PaymentMethod usando o token
         const paymentMethod = await stripe.paymentMethods.create({
           type: 'card',
           card: {
-            number: numeroCartao,
-            exp_month: mesValidade,
-            exp_year: anoValidade,
-            cvc: cvc,
+            token: token, // Usa o token gerado pelo Stripe.js
           },
         });
 
+        // Verifica se o cartão suporta 3D Secure
         if (paymentMethod.card.three_d_secure_usage.supported) {
-          resultados.push({ cartao, status: 'Cadastrado no 3D Secure' });
+          resultados.push({ token, status: 'Cadastrado no 3D Secure' });
         } else {
-          resultados.push({ cartao, status: 'Não cadastrado no 3D Secure' });
+          resultados.push({ token, status: 'Não cadastrado no 3D Secure' });
         }
       } catch (error) {
-        console.error(`Erro ao processar o cartão ${cartao}:`, error.message);
-        resultados.push({ cartao, status: `Erro ao verificar: ${error.message}` });
+        console.error(`Erro ao processar o token ${token}:`, error.message);
+        resultados.push({ token, status: `Erro ao verificar: ${error.message}` });
       }
 
-      // Aguarda um intervalo aleatório entre 5 e 8 segundos antes de processar o próximo cartão
-      if (i < cartoesArray.length - 1) {
+      // Aguarda um intervalo aleatório entre 5 e 8 segundos antes de processar o próximo token
+      if (i < tokens.length - 1) {
         await new Promise((resolve) => setTimeout(resolve, getRandomInterval()));
       }
     }
@@ -83,7 +72,7 @@ app.post('/verificar-3ds', async (req, res) => {
     res.status(200).json({ success: true, resultados });
   } catch (error) {
     console.error('Erro ao processar a requisição:', error.message);
-    res.status(500).json({ success: false, message: 'Erro ao processar os cartões.', error: error.message });
+    res.status(500).json({ success: false, message: 'Erro ao processar os tokens.', error: error.message });
   }
 });
 
