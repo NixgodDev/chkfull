@@ -86,7 +86,7 @@
           document.getElementById("card-errors").textContent = error.message;
         } else {
           // Envia o PaymentMethod para o backend para criar o PaymentIntent
-          const response = await fetch("/criar-payment-intent", {
+          const response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -111,11 +111,8 @@
               // O pagamento falhou
               document.getElementById("card-errors").textContent = confirmResult.error.message;
             } else {
-              // Verifique se o pagamento foi realmente concluído com sucesso
               if (confirmResult.paymentIntent.status === 'succeeded') {
                 alert('Pagamento realizado com sucesso!');
-              } else {
-                document.getElementById("card-errors").textContent = 'Erro no pagamento.';
               }
             }
           } else {
@@ -127,4 +124,3 @@
   </script>
 </body>
 </html>
-
