@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Verificação de Cartões 3D Secure</title>
+  <script src="https://js.stripe.com/v3/"></script> <!-- Inclui o Stripe.js -->
   <style>
     .container {
       max-width: 800px;
@@ -62,6 +63,9 @@
   </div>
 
   <script>
+    // Inicializa o Stripe com sua chave pública
+    const stripe = Stripe('pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7');
+
     document.getElementById('verificarBtn').addEventListener('click', async () => {
       const cartoesInput = document.getElementById('cartoesInput').value;
       const aprovadosDiv = document.getElementById('aprovadosDiv');
@@ -74,13 +78,59 @@
       errosDiv.innerHTML = '';
 
       try {
-        // Envia a requisição para a API
+        // Divide os cartões em linhas e filtra linhas vazias
+        const cartoesArray = cartoesInput.split('\n').filter((line) => line.trim() !== '');
+
+        if (cartoesArray.length === 0) {
+          throw new Error('Nenhum cartão válido fornecido.');
+        }
+
+        if (cartoesArray.length > 100) {
+          throw new Error('O limite é de 100 cartões por requisição.');
+        }
+
+        const tokens = [];
+
+        // Gera um token para cada cartão
+        for (const cartao of cartoesArray) {
+          const [numeroCartao, mesValidade, anoValidade, cvc] = cartao.split('|');
+
+          if (!numeroCartao || !mesValidade || !anoValidade || !cvc) {
+            throw new Error(`Formato do cartão inválido: ${cartao}. Use: número|mês|ano|cvc`);
+          }
+
+          // Cria um elemento de cartão temporário para gerar o token
+          const cardElement = stripe.elements().create('card', {
+            style: {
+              base: {
+                fontSize: '16px',
+                color: '#32325d',
+              },
+            },
+          });
+
+          // Gera o token para o cartão
+          const { token, error } = await stripe.createToken(cardElement, {
+            number: numeroCartao,
+            exp_month: mesValidade,
+            exp_year: anoValidade,
+            cvc: cvc,
+          });
+
+          if (error) {
+            throw new Error(`Erro ao gerar token para o cartão ${cartao}: ${error.message}`);
+          }
+
+          tokens.push(token.id);
+        }
+
+        // Envia os tokens para o back-end
         const response = await fetch('https://chkfull.onrender.com/verificar-3ds', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ cartoes: cartoesInput }),
+          body: JSON.stringify({ tokens }), // Envia a lista de tokens
         });
 
         // Verifica se a resposta é OK
@@ -106,7 +156,7 @@
           if (aprovados.length > 0) {
             aprovadosDiv.innerHTML = '<h2>Cartões Aprovados:</h2>';
             aprovados.forEach((resultado) => {
-              aprovadosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.cartao} | <strong>Status:</strong> ${resultado.status}</p>`;
+              aprovadosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.token} | <strong>Status:</strong> ${resultado.status}</p>`;
             });
           } else {
             aprovadosDiv.innerHTML = '<p>Nenhum cartão aprovado.</p>';
@@ -116,7 +166,7 @@
           if (reprovados.length > 0) {
             reprovadosDiv.innerHTML = '<h2>Cartões Reprovados:</h2>';
             reprovados.forEach((resultado) => {
-              reprovadosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.cartao} | <strong>Status:</strong> ${resultado.status}</p>`;
+              reprovadosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.token} | <strong>Status:</strong> ${resultado.status}</p>`;
             });
           } else {
             reprovadosDiv.innerHTML = '<p>Nenhum cartão reprovado.</p>';
@@ -126,7 +176,7 @@
           if (erros.length > 0) {
             errosDiv.innerHTML = '<h2>Erros:</h2>';
             erros.forEach((resultado) => {
-              errosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.cartao} | <strong>Erro:</strong> ${resultado.status}</p>`;
+              errosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.token} | <strong>Erro:</strong> ${resultado.status}</p>`;
             });
           } else {
             errosDiv.innerHTML = '<p>Nenhum erro encontrado.</p>';
