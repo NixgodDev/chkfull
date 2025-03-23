@@ -1,36 +1,35 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Chave secreta lida da variável de ambiente
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Chave secreta de produção
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+// Habilita CORS apenas para o seu domínio de produção
+const allowedOrigins = ['https://chkfull-1.onrender.com']; // Substitua pelo domínio real
+app.use(cors({ origin: allowedOrigins }));
+
 app.use(bodyParser.json());
 
 // Rota para criar um PaymentIntent
 app.post('/criar-payment-intent', async (req, res) => {
   const { paymentMethod, amount } = req.body;
 
-  // Validação dos dados de entrada
   if (!paymentMethod || !amount) {
     return res.status(400).json({ success: false, message: 'PaymentMethod e amount são obrigatórios.' });
   }
 
   try {
-    // Cria o PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount, // Valor em centavos (ex: 1000 = R$ 10,00)
-      currency: 'brl', // Moeda (BRL para reais)
-      payment_method: paymentMethod, // ID do PaymentMethod
-      confirmation_method: 'manual', // Exige confirmação manual no front-end
-      confirm: true, // Confirma o pagamento automaticamente
-      use_stripe_sdk: true, // Habilita o 3D Secure
-      description: 'Pagamento de teste', // Descrição do pagamento
+      amount: amount, 
+      currency: 'brl',
+      payment_method: paymentMethod,
+      confirmation_method: 'manual', // Agora a confirmação será feita no front-end
+      confirm: false, // O front-end confirmará o pagamento
+      description: 'Pagamento via Stripe',
     });
 
-    // Retorna o clientSecret para o front-end
     res.status(200).json({ success: true, clientSecret: paymentIntent.client_secret });
   } catch (error) {
     console.error('Erro ao criar PaymentIntent:', error.message);
@@ -38,7 +37,7 @@ app.post('/criar-payment-intent', async (req, res) => {
   }
 });
 
-// Rota de teste para verificar se a API está funcionando
+// Rota de teste
 app.get('/teste', (req, res) => {
   res.status(200).json({ success: true, message: 'API está funcionando!' });
 });
