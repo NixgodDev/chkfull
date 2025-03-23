@@ -9,13 +9,8 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Função para gerar um intervalo aleatório entre 5 e 8 segundos
-function getRandomInterval() {
-  return Math.floor(Math.random() * (8000 - 5000 + 1)) + 5000;
-}
-
-// Função para verificar um cartão
-async function verificarCartao(cartao) {
+// Função para verificar se o cartão está cadastrado no 3D Secure
+async function verificar3DS(cartao) {
   const [numeroCartao, mesValidade, anoValidade, cvc] = cartao.split('|');
 
   try {
@@ -30,29 +25,19 @@ async function verificarCartao(cartao) {
       },
     });
 
-    // Cria um PaymentIntent com 3D Secure
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: 100, // Valor simbólico (R$ 1,00)
-      currency: 'brl',
-      payment_method: paymentMethod.id,
-      confirmation_method: 'manual',
-      confirm: true,
-      use_stripe_sdk: true, // Habilita 3D Secure
-    });
-
-    // Verifica se o cartão está cadastrado no 3D Secure
-    if (paymentIntent.next_action && paymentIntent.next_action.type === 'use_stripe_sdk') {
+    // Verifica se o cartão exige autenticação 3D Secure
+    if (paymentMethod.card.three_d_secure_usage.supported) {
       return { cartao, status: 'Cadastrado no 3D Secure' };
     } else {
       return { cartao, status: 'Não cadastrado no 3D Secure' };
     }
   } catch (error) {
-    return { cartao, status: 'Erro ao verificar', error: error.message };
+    return { cartao, status: `Erro ao verificar: ${error.message}` };
   }
 }
 
-// Rota para processar os cartões
-app.post('/verificar-cartoes', async (req, res) => {
+// Rota para verificar cartões
+app.post('/verificar-3ds', async (req, res) => {
   const { cartoes } = req.body;
 
   if (!cartoes) {
@@ -66,26 +51,15 @@ app.post('/verificar-cartoes', async (req, res) => {
       return res.status(400).json({ success: false, message: 'O limite é de 100 cartões por requisição.' });
     }
 
-    const aprovados = [];
-    const reprovados = [];
+    const resultados = [];
 
-    // Processa cada cartão com um intervalo de 5 a 8 segundos
-    for (let i = 0; i < cartoesArray.length; i++) {
-      const cartao = cartoesArray[i];
-      const resultado = await verificarCartao(cartao);
-
-      if (resultado.status === 'Cadastrado no 3D Secure') {
-        aprovados.push(`${cartao}|${resultado.status}`);
-      } else {
-        reprovados.push(`${cartao}|${resultado.status}`);
-      }
-
-      if (i < cartoesArray.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, getRandomInterval()));
-      }
+    // Processa cada cartão
+    for (const cartao of cartoesArray) {
+      const resultado = await verificar3DS(cartao);
+      resultados.push(resultado);
     }
 
-    res.status(200).json({ success: true, aprovados, reprovados });
+    res.status(200).json({ success: true, resultados });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erro ao processar os cartões.', error: error.message });
   }
@@ -93,7 +67,7 @@ app.post('/verificar-cartoes', async (req, res) => {
 
 // Rota de teste
 app.get('/', (req, res) => {
-  res.send('API de verificação de cartões 3D Secure está funcionando!');
+  res.send('API de verificação 3D Secure está funcionando!');
 });
 
 app.listen(port, () => {
