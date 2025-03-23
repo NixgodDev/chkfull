@@ -7,12 +7,12 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Habilita CORS apenas para o seu domínio de produção
-const allowedOrigins = ['https://chkfull-1.onrender.com']; // Substitua pelo domínio real
+const allowedOrigins = ['https://seu-dominio.com']; // Substitua pelo domínio real
 app.use(cors({ origin: allowedOrigins }));
 
 app.use(bodyParser.json());
 
-// Rota para criar um PaymentIntent
+// Rota para criar um PaymentIntent e confirmar automaticamente
 app.post('/criar-payment-intent', async (req, res) => {
   const { paymentMethod, amount } = req.body;
 
@@ -22,15 +22,15 @@ app.post('/criar-payment-intent', async (req, res) => {
 
   try {
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount, 
+      amount: amount,
       currency: 'brl',
       payment_method: paymentMethod,
-      confirmation_method: 'manual', // Agora a confirmação será feita no front-end
-      confirm: false, // O front-end confirmará o pagamento
+      confirmation_method: 'automatic', // Agora o Stripe confirma sozinho
+      confirm: true, // Confirma automaticamente
       description: 'Pagamento via Stripe',
     });
 
-    res.status(200).json({ success: true, clientSecret: paymentIntent.client_secret });
+    res.status(200).json({ success: true, paymentIntentId: paymentIntent.id, status: paymentIntent.status });
   } catch (error) {
     console.error('Erro ao criar PaymentIntent:', error.message);
     res.status(500).json({ success: false, message: 'Erro ao criar PaymentIntent.', error: error.message });
