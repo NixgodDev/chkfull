@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Processar Pagamento com 3D Secure</title>
-  <script src="https://js.stripe.com/v3/"></script> <!-- Inclui o Stripe.js -->
+  <title>Pagamento Seguro com Stripe</title>
+  <script src="https://js.stripe.com/v3/"></script> <!-- Inclui Stripe.js -->
   <style>
     .container {
       max-width: 800px;
@@ -46,11 +46,9 @@
 </head>
 <body>
   <div class="container">
-    <h1>Processar Pagamento com 3D Secure</h1>
+    <h1>Pagamento Seguro com Stripe</h1>
     <form id="payment-form">
-      <div id="card-element">
-        <!-- Stripe Elements será injetado aqui -->
-      </div>
+      <div id="card-element"></div>
       <button id="pagarBtn">Pagar R$ 10,00</button>
       <div id="card-errors" role="alert"></div>
     </form>
@@ -61,91 +59,64 @@
   </div>
 
   <script>
-    // Inicializa o Stripe com sua chave pública
+    // Inicializa Stripe com a chave pública de produção
     const stripe = Stripe('pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7');
 
-    // Configura o Stripe Elements
+    // Configura Stripe Elements
     const elements = stripe.elements();
     const cardElement = elements.create('card');
     cardElement.mount('#card-element');
 
-    // Referências aos elementos do DOM
+    // Referências ao DOM
     const form = document.getElementById('payment-form');
-    const cardErrors = document.getElementById('card-errors');
     const resultadoDiv = document.getElementById('resultadoDiv');
+    const cardErrors = document.getElementById('card-errors');
 
     // Evento de envio do formulário
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-
-      // Limpa os resultados anteriores
+      
       resultadoDiv.innerHTML = '';
       cardErrors.textContent = '';
 
       try {
-        console.log('Criando PaymentMethod...'); // Log de depuração
-
-        // Cria um PaymentMethod com os dados do cartão
+        // Cria o PaymentMethod a partir dos dados do cartão
         const { paymentMethod, error } = await stripe.createPaymentMethod({
           type: 'card',
           card: cardElement,
         });
 
         if (error) {
-          throw new Error(`Erro ao criar PaymentMethod: ${error.message}`);
+          throw new Error(error.message);
         }
 
-        console.log('PaymentMethod criado:', paymentMethod.id); // Log de depuração
-
-        // Envia o PaymentMethod para o back-end e cria um PaymentIntent
-        const response = await fetch('/criar-payment-intent', {
+        // Envia o PaymentMethod para a API e obtém o clientSecret
+        const response = await fetch('https://chkfull.onrender.com/criar-payment-intent', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ paymentMethod: paymentMethod.id, amount: 1000 }), // amount em centavos (ex: 1000 = R$ 10,00)
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentMethod: paymentMethod.id, amount: 1000 }), // amount em centavos
         });
 
-        console.log('Resposta recebida:', response); // Log de depuração
-
-        // Verifica se a resposta é OK
-        if (!response.ok) {
-          const text = await response.text(); // Captura o texto da resposta para depuração
-          console.error('Erro na resposta:', text);
-          throw new Error(`Erro na requisição: ${response.status}`);
-        }
-
-        // Converte a resposta para JSON
         const data = await response.json();
-        console.log('Resposta JSON:', data); // Log de depuração
 
-        // Verifica se a requisição foi bem-sucedida
         if (!data.success) {
-          throw new Error(data.message); // Exibe a mensagem de erro da API
+          throw new Error(data.message);
         }
-
-        console.log('Confirmando pagamento...'); // Log de depuração
 
         // Confirma o pagamento no front-end
-        const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(data.clientSecret, {
-          payment_method: paymentMethod.id,
-        });
+        const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(data.clientSecret);
 
         if (confirmError) {
-          throw new Error(`Erro ao confirmar o pagamento: ${confirmError.message}`);
+          throw new Error(confirmError.message);
         }
-
-        console.log('Pagamento confirmado:', paymentIntent); // Log de depuração
 
         // Exibe o resultado do pagamento
         if (paymentIntent.status === 'succeeded') {
-          resultadoDiv.innerHTML = `<p class="sucesso">Pagamento bem-sucedido! ID do pagamento: ${paymentIntent.id}</p>`;
+          resultadoDiv.innerHTML = `<p class="sucesso">Pagamento aprovado! ID: ${paymentIntent.id}</p>`;
         } else {
           resultadoDiv.innerHTML = `<p class="erro">Status do pagamento: ${paymentIntent.status}</p>`;
         }
       } catch (error) {
-        // Exibe erros de rede ou de processamento
-        console.error('Erro:', error); // Log de depuração
         cardErrors.textContent = error.message;
       }
     });
