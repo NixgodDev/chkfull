@@ -15,12 +15,10 @@
     h1 {
       text-align: center;
     }
-    textarea {
-      width: 100%;
-      height: 100px;
-      margin-bottom: 20px;
+    #card-element {
+      border: 1px solid #ccc;
       padding: 10px;
-      font-size: 16px;
+      margin-bottom: 20px;
     }
     button {
       display: block;
@@ -52,8 +50,13 @@
 <body>
   <div class="container">
     <h1>Verificação de Cartões 3D Secure</h1>
-    <textarea id="cartoesInput" placeholder="Insira os cartões no formato: número|mês|ano|cvc, um por linha"></textarea>
-    <button id="verificarBtn">Verificar Cartões</button>
+    <form id="payment-form">
+      <div id="card-element">
+        <!-- Stripe Elements será injetado aqui -->
+      </div>
+      <button id="verificarBtn">Verificar Cartão</button>
+      <div id="card-errors" role="alert"></div>
+    </form>
 
     <div class="resultados">
       <div id="aprovadosDiv"></div>
@@ -66,11 +69,19 @@
     // Inicializa o Stripe com sua chave pública
     const stripe = Stripe('pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7');
 
-    document.getElementById('verificarBtn').addEventListener('click', async () => {
-      const cartoesInput = document.getElementById('cartoesInput').value;
-      const aprovadosDiv = document.getElementById('aprovadosDiv');
-      const reprovadosDiv = document.getElementById('reprovadosDiv');
-      const errosDiv = document.getElementById('errosDiv');
+    // Configura o Stripe Elements
+    const elements = stripe.elements();
+    const cardElement = elements.create('card');
+    cardElement.mount('#card-element');
+
+    const form = document.getElementById('payment-form');
+    const cardErrors = document.getElementById('card-errors');
+    const aprovadosDiv = document.getElementById('aprovadosDiv');
+    const reprovadosDiv = document.getElementById('reprovadosDiv');
+    const errosDiv = document.getElementById('errosDiv');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
 
       // Limpa os resultados anteriores
       aprovadosDiv.innerHTML = '';
@@ -78,52 +89,23 @@
       errosDiv.innerHTML = '';
 
       try {
-        // Divide os cartões em linhas e filtra linhas vazias
-        const cartoesArray = cartoesInput.split('\n').filter((line) => line.trim() !== '');
+        // Cria um PaymentMethod com os dados do cartão
+        const { paymentMethod, error } = await stripe.createPaymentMethod({
+          type: 'card',
+          card: cardElement,
+        });
 
-        if (cartoesArray.length === 0) {
-          throw new Error('Nenhum cartão válido fornecido.');
+        if (error) {
+          throw new Error(`Erro ao criar PaymentMethod: ${error.message}`);
         }
 
-        if (cartoesArray.length > 100) {
-          throw new Error('O limite é de 100 cartões por requisição.');
-        }
-
-        const paymentMethods = [];
-
-        // Processa cada cartão
-        for (const cartao of cartoesArray) {
-          const [numeroCartao, mesValidade, anoValidade, cvc] = cartao.split('|');
-
-          if (!numeroCartao || !mesValidade || !anoValidade || !cvc) {
-            throw new Error(`Formato do cartão inválido: ${cartao}. Use: número|mês|ano|cvc`);
-          }
-
-          // Cria um PaymentMethod para o cartão
-          const { paymentMethod, error } = await stripe.createPaymentMethod({
-            type: 'card',
-            card: {
-              number: numeroCartao,
-              exp_month: mesValidade,
-              exp_year: anoValidade,
-              cvc: cvc,
-            },
-          });
-
-          if (error) {
-            throw new Error(`Erro ao criar PaymentMethod para o cartão ${cartao}: ${error.message}`);
-          }
-
-          paymentMethods.push(paymentMethod.id);
-        }
-
-        // Envia os PaymentMethods para o back-end
+        // Envia o PaymentMethod para o back-end
         const response = await fetch('https://chkfull.onrender.com/verificar-3ds', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ paymentMethods }), // Envia a lista de PaymentMethods
+          body: JSON.stringify({ paymentMethod: paymentMethod.id }), // Envia o ID do PaymentMethod
         });
 
         // Verifica se a resposta é OK
@@ -138,41 +120,15 @@
 
         // Verifica se a requisição foi bem-sucedida
         if (data.success) {
-          const resultados = data.resultados;
+          const resultado = data.resultado;
 
-          // Filtra os resultados em aprovados, reprovados e erros
-          const aprovados = resultados.filter((resultado) => resultado.status === 'Cadastrado no 3D Secure');
-          const reprovados = resultados.filter((resultado) => resultado.status === 'Não cadastrado no 3D Secure');
-          const erros = resultados.filter((resultado) => resultado.status.startsWith('Erro ao verificar'));
-
-          // Exibe os aprovados
-          if (aprovados.length > 0) {
-            aprovadosDiv.innerHTML = '<h2>Cartões Aprovados:</h2>';
-            aprovados.forEach((resultado) => {
-              aprovadosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.paymentMethod} | <strong>Status:</strong> ${resultado.status}</p>`;
-            });
+          // Exibe o resultado
+          if (resultado.status === 'Cadastrado no 3D Secure') {
+            aprovadosDiv.innerHTML = `<p><strong>Cartão:</strong> ${resultado.paymentMethod} | <strong>Status:</strong> ${resultado.status}</p>`;
+          } else if (resultado.status === 'Não cadastrado no 3D Secure') {
+            reprovadosDiv.innerHTML = `<p><strong>Cartão:</strong> ${resultado.paymentMethod} | <strong>Status:</strong> ${resultado.status}</p>`;
           } else {
-            aprovadosDiv.innerHTML = '<p>Nenhum cartão aprovado.</p>';
-          }
-
-          // Exibe os reprovados
-          if (reprovados.length > 0) {
-            reprovadosDiv.innerHTML = '<h2>Cartões Reprovados:</h2>';
-            reprovados.forEach((resultado) => {
-              reprovadosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.paymentMethod} | <strong>Status:</strong> ${resultado.status}</p>`;
-            });
-          } else {
-            reprovadosDiv.innerHTML = '<p>Nenhum cartão reprovado.</p>';
-          }
-
-          // Exibe os erros
-          if (erros.length > 0) {
-            errosDiv.innerHTML = '<h2>Erros:</h2>';
-            erros.forEach((resultado) => {
-              errosDiv.innerHTML += `<p><strong>Cartão:</strong> ${resultado.paymentMethod} | <strong>Erro:</strong> ${resultado.status}</p>`;
-            });
-          } else {
-            errosDiv.innerHTML = '<p>Nenhum erro encontrado.</p>';
+            errosDiv.innerHTML = `<p><strong>Cartão:</strong> ${resultado.paymentMethod} | <strong>Erro:</strong> ${resultado.status}</p>`;
           }
         } else {
           // Exibe mensagem de erro da API
