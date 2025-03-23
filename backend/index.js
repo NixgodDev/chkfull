@@ -12,7 +12,7 @@ app.use(cors({ origin: allowedOrigins }));
 
 app.use(bodyParser.json());
 
-// Rota para criar um PaymentIntent e confirmar automaticamente
+// Rota para criar um PaymentIntent com confirmação automática
 app.post('/criar-payment-intent', async (req, res) => {
   const { paymentMethod, amount } = req.body;
 
@@ -21,24 +21,14 @@ app.post('/criar-payment-intent', async (req, res) => {
   }
 
   try {
-    // Cria o PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount,
       currency: 'brl',
       payment_method: paymentMethod,
-      confirmation_method: 'automatic',  // Confirma automaticamente o pagamento
+      confirmation_method: 'automatic',  // Confirma automaticamente no frontend
       confirm: true,  // Confirma automaticamente
       description: 'Pagamento via Stripe',
     });
-
-    // Se o PaymentIntent já foi confirmado, não tente confirmar novamente
-    if (paymentIntent.status === 'succeeded') {
-      return res.status(200).json({
-        success: true,
-        paymentIntentId: paymentIntent.id,
-        clientSecret: paymentIntent.client_secret,
-      });
-    }
 
     // Retorna o client_secret para o frontend
     res.status(200).json({
