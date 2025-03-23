@@ -62,7 +62,7 @@
   <script>
     document.addEventListener("DOMContentLoaded", async function() {
       // Inicializa o Stripe com a chave pública real
-      const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7");  // 🔹 Substitua pela chave real
+      const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7");  // Substitua pela chave real
       const elements = stripe.elements();
 
       // Cria o campo do cartão
@@ -78,6 +78,8 @@
       // Evento de pagamento
       document.getElementById("payment-form").addEventListener("submit", async function(event) {
         event.preventDefault();
+
+        // Cria o PaymentMethod com o cartão
         const { paymentMethod, error } = await stripe.createPaymentMethod({
           type: "card",
           card: card
@@ -86,7 +88,38 @@
         if (error) {
           document.getElementById("card-errors").textContent = error.message;
         } else {
-          alert("Cartão adicionado com sucesso! ID: " + paymentMethod.id);
+          // Envia o PaymentMethod para o backend para criar o PaymentIntent
+          const response = await fetch("/criar-payment-intent", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              paymentMethod: paymentMethod.id,
+              amount: 1000, // Valor do pagamento em centavos (R$ 10,00)
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            const paymentIntent = data.paymentIntentId;
+            // Confirma o pagamento no frontend, verificando o status
+            const confirmResult = await stripe.confirmCardPayment(paymentIntent, {
+              payment_method: paymentMethod.id,
+            });
+
+            if (confirmResult.error) {
+              // O pagamento falhou
+              document.getElementById("card-errors").textContent = confirmResult.error.message;
+            } else {
+              if (confirmResult.paymentIntent.status === 'succeeded') {
+                alert('Pagamento realizado com sucesso!');
+              }
+            }
+          } else {
+            document.getElementById("card-errors").textContent = data.message;
+          }
         }
       });
     });
