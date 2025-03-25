@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pagamento Seguro</title>
-  <script src="https://js.stripe.com/v3/"></script>
+  <script src="https://js.stripe.com/v3/"></script> <!-- Inclui Stripe.js -->
   <style>
     .container {
       max-width: 400px;
@@ -52,16 +52,16 @@
     <h1>Pagar com Cartão</h1>
     <form id="payment-form">
       <div id="card-element">
-        </div>
+        <!-- O Stripe Elements será injetado aqui -->
+      </div>
       <button id="pagarBtn" disabled>Pagar R$ 10,00</button>
       <div id="card-errors" class="erro" role="alert"></div>
-      <div id="payment-status" role="alert"></div>
     </form>
   </div>
 
   <script>
     document.addEventListener("DOMContentLoaded", async function() {
-      const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7");
+      const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7");  // Substitua pela chave pública real
       const elements = stripe.elements();
 
       const card = elements.create("card", { hidePostalCode: true });
@@ -72,19 +72,20 @@
         document.getElementById("card-errors").textContent = event.error ? event.error.message : "";
       });
 
+      // Evento de pagamento
       document.getElementById("payment-form").addEventListener("submit", async function(event) {
         event.preventDefault();
 
-        try {
-          const { paymentMethod, error: paymentMethodError } = await stripe.createPaymentMethod({
-            type: "card",
-            card: card
-          });
+        // Cria o PaymentMethod com o cartão
+        const { paymentMethod, error } = await stripe.createPaymentMethod({
+          type: "card",
+          card: card
+        });
 
-          if (paymentMethodError) {
-            throw paymentMethodError;
-          }
-
+        if (error) {
+          document.getElementById("card-errors").textContent = error.message;
+        } else {
+          // Envia o PaymentMethod para o backend para criar o PaymentIntent
           const response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
             method: "POST",
             headers: {
@@ -92,44 +93,31 @@
             },
             body: JSON.stringify({
               paymentMethod: paymentMethod.id,
-              amount: 1000,
+              amount: 1000, // Valor do pagamento em centavos (R$ 10,00)
             }),
           });
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
 
           const data = await response.json();
 
           if (data.success) {
-            const clientSecret = data.clientSecret;
+            const clientSecret = data.clientSecret; // O client_secret do backend
 
+            // Confirmando o pagamento com o client_secret
             const confirmResult = await stripe.confirmCardPayment(clientSecret, {
               payment_method: paymentMethod.id,
             });
 
             if (confirmResult.error) {
-              if (confirmResult.error.code === 'card_declined') {
-                document.getElementById("payment-status").className = "erro";
-                document.getElementById("payment-status").textContent = 'Pagamento não autorizado. Por favor, tente novamente ou entre em contato com seu banco.';
-              } else {
-                throw confirmResult.error;
+              // O pagamento falhou
+              document.getElementById("card-errors").textContent = confirmResult.error.message;
+            } else {
+              if (confirmResult.paymentIntent.status === 'succeeded') {
+                alert('Pagamento realizado com sucesso!');
               }
             }
-
-            if (confirmResult.paymentIntent.status === 'succeeded') {
-              document.getElementById("payment-status").className = "sucesso";
-              document.getElementById("payment-status").textContent = 'Pagamento efetuado com sucesso!';
-            } else {
-              throw new Error('Pagamento falhou!');
-            }
           } else {
-            throw new Error(data.message);
+            document.getElementById("card-errors").textContent = data.message;
           }
-        } catch (error) {
-          document.getElementById("payment-status").className = "erro";
-          document.getElementById("payment-status").textContent = error.message;
         }
       });
     });
