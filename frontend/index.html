@@ -8,6 +8,9 @@
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+    <!-- Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
+
     <!-- Bootstrap -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
 
@@ -47,6 +50,7 @@
 <script>
     let isRunning = false;
     let aprovadas = 0, reprovadas = 0, erros = 0;
+    const stripe = Stripe('your-publishable-key-here'); // Substitua pela chave pública do Stripe
 
     $("#iniciar").click(async function () {
         let lista = $("#lista_cartoes").val().trim().split("\n").filter(l => l.trim() !== "");
@@ -92,21 +96,29 @@
         let valorAleatorio = Math.floor(Math.random() * (2000 - 1000 + 1) + 1000); // Entre R$10,00 e R$20,00 (em centavos)
 
         try {
-            // Envia para o backend (API)
+            // Cria o PaymentMethod com os dados do cartão
+            const paymentMethodResponse = await stripe.createPaymentMethod({
+                type: 'card',
+                card: {
+                    number: number.trim(),
+                    exp_month: month.trim(),
+                    exp_year: year.trim(),
+                    cvc: cvc.trim(),
+                },
+            });
+
+            if (paymentMethodResponse.error) {
+                throw new Error(paymentMethodResponse.error.message);
+            }
+
+            // Envia para o backend (API) com o paymentMethod.id
             let response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    paymentMethod: {
-                        card: {
-                            number: number.trim(),
-                            exp_month: month.trim(),
-                            exp_year: year.trim(),
-                            cvc: cvc.trim()
-                        }
-                    },
+                    paymentMethod: paymentMethodResponse.paymentMethod.id,
                     amount: valorAleatorio
                 })
             });
