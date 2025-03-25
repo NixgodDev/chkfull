@@ -56,6 +56,7 @@
       </div>
       <button id="pagarBtn" disabled>Pagar R$ 10,00</button>
       <div id="card-errors" class="erro" role="alert"></div>
+      <div id="payment-status"></div> <!-- Exibe o status do pagamento -->
     </form>
   </div>
 
@@ -110,9 +111,12 @@
             if (confirmResult.error) {
               // O pagamento falhou
               document.getElementById("card-errors").textContent = confirmResult.error.message;
+              document.getElementById("payment-status").textContent = "Pagamento falhou!";
+              document.getElementById("payment-status").classList.add("erro");
             } else {
               if (confirmResult.paymentIntent.status === 'succeeded') {
-                alert('Pagamento realizado com sucesso!');
+                document.getElementById("payment-status").textContent = "Pagamento realizado com sucesso!";
+                document.getElementById("payment-status").classList.add("sucesso");
               }
             }
           } else {
