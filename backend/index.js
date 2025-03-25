@@ -7,7 +7,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Habilita CORS apenas para o seu domínio de produção
-const allowedOrigins = ['https://chkfull-1.onrender.com']; // Substitua pelo domínio real
+const allowedOrigins = ['https://chkfull-1.onrender.com']; // Substitua pelo seu domínio real
 app.use(cors({ origin: allowedOrigins }));
 
 app.use(bodyParser.json());
@@ -24,7 +24,7 @@ app.post('/criar-payment-intent', async (req, res) => {
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount,
       currency: 'brl',
-      payment_method: paymentMethod,  // Usando o ID do PaymentMethod recebido do frontend
+      payment_method: paymentMethod,
       confirmation_method: 'automatic',  // Confirma automaticamente no frontend
       confirm: true,  // Confirma automaticamente
       description: 'Pagamento via Stripe',
