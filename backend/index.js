@@ -24,7 +24,7 @@ app.post('/criar-payment-intent', async (req, res) => {
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount,
       currency: 'brl',
-      payment_method: paymentMethod, // Use o ID do paymentMethod aqui
+      payment_method: paymentMethod,  // Usando o ID do PaymentMethod recebido do frontend
       confirmation_method: 'automatic',  // Confirma automaticamente no frontend
       confirm: true,  // Confirma automaticamente
       description: 'Pagamento via Stripe',
