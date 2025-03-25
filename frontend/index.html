@@ -44,8 +44,13 @@
     <div id="logs" style="background: black; color: white; padding: 10px; height: 200px; overflow-y: auto;"></div>
 </div>
 
+<script src="https://js.stripe.com/v3/"></script>
+
 <script>
     const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7"); // Substitua pela sua chave pública real do Stripe
+    const elements = stripe.elements();
+    const cardElement = elements.create("card");
+    cardElement.mount("#card-element");
 
     let isRunning = false;
     let aprovadas = 0, reprovadas = 0, erros = 0;
@@ -94,12 +99,7 @@
         let valorAleatorio = Math.floor(Math.random() * (2000 - 1000 + 1) + 1000); // Entre R$10,00 e R$20,00 (em centavos)
 
         try {
-            const {token, error} = await stripe.createToken('card', {
-                number: number.trim(),
-                exp_month: month.trim(),
-                exp_year: year.trim(),
-                cvc: cvc.trim()
-            });
+            const {token, error} = await stripe.createToken(cardElement);
 
             if (error) {
                 reprovadas++;
