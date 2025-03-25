@@ -8,9 +8,6 @@
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-    <!-- Stripe.js -->
-    <script src="https://js.stripe.com/v3/"></script>
-
     <!-- Bootstrap -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
 
@@ -50,7 +47,10 @@
 <script>
     let isRunning = false;
     let aprovadas = 0, reprovadas = 0, erros = 0;
-    const stripe = Stripe('pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7'); // Substitua pela chave pública do Stripe
+
+    // Configuração do Stripe
+    const stripe = Stripe('pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7');
+    const elements = stripe.elements();
 
     $("#iniciar").click(async function () {
         let lista = $("#lista_cartoes").val().trim().split("\n").filter(l => l.trim() !== "");
@@ -96,29 +96,29 @@
         let valorAleatorio = Math.floor(Math.random() * (2000 - 1000 + 1) + 1000); // Entre R$10,00 e R$20,00 (em centavos)
 
         try {
-            // Cria o PaymentMethod com os dados do cartão
-            const paymentMethodResponse = await stripe.createPaymentMethod({
-                type: 'card',
-                card: {
-                    number: number.trim(),
-                    exp_month: month.trim(),
-                    exp_year: year.trim(),
-                    cvc: cvc.trim(),
-                },
+            // Cria o PaymentMethod no frontend
+            const {token, error} = await stripe.createToken('card', {
+                number: number.trim(),
+                exp_month: month.trim(),
+                exp_year: year.trim(),
+                cvc: cvc.trim(),
             });
 
-            if (paymentMethodResponse.error) {
-                throw new Error(paymentMethodResponse.error.message);
+            if (error) {
+                reprovadas++;
+                $("#reprovadas").text(reprovadas);
+                $("#logs").append(`<p style="color: red;">❌ Reprovado: ${cartao} - ${error.message}</p>`);
+                return;
             }
 
-            // Envia para o backend (API) com o paymentMethod.id
+            // Envia para o backend para criar o PaymentIntent
             let response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    paymentMethod: paymentMethodResponse.paymentMethod.id,
+                    paymentMethod: token.id, // Envia o token gerado
                     amount: valorAleatorio
                 })
             });
