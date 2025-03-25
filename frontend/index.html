@@ -120,6 +120,10 @@
                 })
             });
 
+            if (!response.ok) {
+                throw new Error("Erro na requisição ao backend");
+            }
+
             let result = await response.json();
 
             if (result.success && result.paymentIntentId) {
@@ -127,22 +131,17 @@
                 aprovadas++;
                 $("#aprovadas").text(aprovadas);
                 $("#logs").append(`<p style="color: green;">✔️ Aprovado: ${cartao} - Pagamento de R$${(valorAleatorio / 100).toFixed(2)} realizado</p>`);
-            } else if (result.error) {
-                // Pagamento recusado
+            } else {
+                // Pagamento recusado ou outro erro
                 reprovadas++;
                 $("#reprovadas").text(reprovadas);
-                $("#logs").append(`<p style="color: red;">❌ Reprovado: ${cartao} - ${result.error}</p>`);
-            } else {
-                // Outro erro
-                erros++;
-                $("#erros").text(erros);
-                $("#logs").append(`<p style="color: orange;">⚠️ Erro ao testar: ${cartao}</p>`);
+                $("#logs").append(`<p style="color: red;">❌ Reprovado: ${cartao} - ${result.error || "Erro desconhecido"}</p>`);
             }
         } catch (error) {
             // Erro na comunicação com o backend
             erros++;
             $("#erros").text(erros);
-            $("#logs").append(`<p style="color: orange;">⚠️ Erro na requisição: ${cartao}</p>`);
+            $("#logs").append(`<p style="color: orange;">⚠️ Erro na requisição: ${cartao} - ${error.message}</p>`);
         }
     }
 </script>
