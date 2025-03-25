@@ -1,13 +1,13 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Substitua pela sua chave secreta real
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Chave secreta de produção
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Habilita CORS apenas para o seu domínio de produção
-const allowedOrigins = ['https://chkfull-1.onrender.com']; // Substitua pelo seu domínio real
+const allowedOrigins = ['https://chkfull-1.onrender.com']; // Substitua pelo domínio real
 app.use(cors({ origin: allowedOrigins }));
 
 app.use(bodyParser.json());
