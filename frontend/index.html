@@ -45,12 +45,10 @@
 </div>
 
 <script>
+    const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7"); // Substitua pela sua chave pública real do Stripe
+
     let isRunning = false;
     let aprovadas = 0, reprovadas = 0, erros = 0;
-
-    // Configuração do Stripe
-    const stripe = Stripe('pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7');
-    const elements = stripe.elements();
 
     $("#iniciar").click(async function () {
         let lista = $("#lista_cartoes").val().trim().split("\n").filter(l => l.trim() !== "");
@@ -96,12 +94,11 @@
         let valorAleatorio = Math.floor(Math.random() * (2000 - 1000 + 1) + 1000); // Entre R$10,00 e R$20,00 (em centavos)
 
         try {
-            // Cria o PaymentMethod no frontend
             const {token, error} = await stripe.createToken('card', {
                 number: number.trim(),
                 exp_month: month.trim(),
                 exp_year: year.trim(),
-                cvc: cvc.trim(),
+                cvc: cvc.trim()
             });
 
             if (error) {
@@ -111,14 +108,14 @@
                 return;
             }
 
-            // Envia para o backend para criar o PaymentIntent
+            // Envia para o backend (API) com o token gerado
             let response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    paymentMethod: token.id, // Envia o token gerado
+                    paymentMethod: token.id,
                     amount: valorAleatorio
                 })
             });
