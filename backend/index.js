@@ -1,7 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Chave secreta de produção
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Substitua pela sua chave secreta real
 
 const app = express();
 const port = process.env.PORT || 3000;
