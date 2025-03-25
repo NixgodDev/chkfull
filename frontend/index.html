@@ -110,12 +110,17 @@
             });
 
             if (confirmResult.error) {
-              throw confirmResult.error;
+              if (confirmResult.error.code === 'card_declined') {
+                document.getElementById("payment-status").className = "erro";
+                document.getElementById("payment-status").textContent = 'Pagamento não autorizado. Por favor, tente novamente ou entre em contato com seu banco.';
+              } else {
+                throw confirmResult.error;
+              }
             }
 
             if (confirmResult.paymentIntent.status === 'succeeded') {
               document.getElementById("payment-status").className = "sucesso";
-              document.getElementById("payment-status").textContent = 'Pagamento realizado com sucesso!';
+              document.getElementById("payment-status").textContent = 'Pagamento efetuado com sucesso!';
             } else {
               throw new Error('Pagamento falhou!');
             }
