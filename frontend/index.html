@@ -1,150 +1,126 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checker Stripe (Testes Reais)</title>
-
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-    <!-- Bootstrap -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
-
-    <!-- SweetAlert -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@9"></script>
-
-    <style>
-        body { background-color: #14192e; color: white; font-family: Arial, sans-serif; }
-        .container { max-width: 800px; margin: auto; padding: 20px; background: #232b4a; border-radius: 10px; }
-        textarea { width: 100%; height: 150px; background: #1a1a1a; color: white; border: 1px solid #333; padding: 10px; }
-        .btn { width: 49%; padding: 10px; border-radius: 5px; cursor: pointer; }
-        .btn-success { background: #00ff7f; color: black; }
-        .btn-danger { background: #ff4d4d; color: white; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagamento Seguro</title>
+  <script src="https://js.stripe.com/v3/"></script> <!-- Inclui Stripe.js -->
+  <style>
+    .container {
+      max-width: 400px;
+      margin: 50px auto;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      font-size: 20px;
+    }
+    #card-element {
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    button {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .erro {
+      color: red;
+    }
+    .sucesso {
+      color: green;
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <h1>Pagar com Cartão</h1>
+    <form id="payment-form">
+      <div id="card-element">
+        <!-- O Stripe Elements será injetado aqui -->
+      </div>
+      <button id="pagarBtn" disabled>Pagar R$ 10,00</button>
+      <div id="card-errors" class="erro" role="alert"></div>
+    </form>
+  </div>
 
-<div class="container">
-    <h2 class="text-center">Verificador de Cartões (Stripe - Teste Real)</h2>
+  <script>
+    document.addEventListener("DOMContentLoaded", async function() {
+      const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7");  // Substitua pela chave pública real
+      const elements = stripe.elements();
 
-    <textarea id="lista_cartoes" placeholder="Insira os cartões no formato: 4242424242424242|12|2025|123"></textarea>
+      const card = elements.create("card", { hidePostalCode: true });
+      card.mount("#card-element");
 
-    <div class="mt-3">
-        <button class="btn btn-success" id="iniciar">Iniciar</button>
-        <button class="btn btn-danger" id="parar" disabled>Parar</button>
-    </div>
+      card.on("change", function(event) {
+        document.getElementById("pagarBtn").disabled = event.empty;
+        document.getElementById("card-errors").textContent = event.error ? event.error.message : "";
+      });
 
-    <h4 class="mt-3">Resultados:</h4>
-    <p>Aprovados: <span id="aprovadas">0</span></p>
-    <p>Reprovados: <span id="reprovadas">0</span></p>
-    <p>Erros: <span id="erros">0</span></p>
+      // Evento de pagamento
+      document.getElementById("payment-form").addEventListener("submit", async function(event) {
+        event.preventDefault();
 
-    <h4 class="mt-3">Logs:</h4>
-    <div id="logs" style="background: black; color: white; padding: 10px; height: 200px; overflow-y: auto;"></div>
-</div>
+        // Cria o PaymentMethod com o cartão
+        const { paymentMethod, error } = await stripe.createPaymentMethod({
+          type: "card",
+          card: card
+        });
 
-<script src="https://js.stripe.com/v3/"></script>
+        if (error) {
+          document.getElementById("card-errors").textContent = error.message;
+        } else {
+          // Envia o PaymentMethod para o backend para criar o PaymentIntent
+          const response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              paymentMethod: paymentMethod.id,
+              amount: 1000, // Valor do pagamento em centavos (R$ 10,00)
+            }),
+          });
 
-<script>
-    const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7"); // Substitua pela sua chave pública real do Stripe
-    const elements = stripe.elements();
-    const cardElement = elements.create("card");
-    cardElement.mount("#card-element");
+          const data = await response.json();
 
-    let isRunning = false;
-    let aprovadas = 0, reprovadas = 0, erros = 0;
+          if (data.success) {
+            const clientSecret = data.clientSecret; // O client_secret do backend
 
-    $("#iniciar").click(async function () {
-        let lista = $("#lista_cartoes").val().trim().split("\n").filter(l => l.trim() !== "");
-
-        if (lista.length === 0) {
-            Swal.fire("Erro!", "Insira pelo menos um cartão!", "error");
-            return;
-        }
-
-        isRunning = true;
-        $("#iniciar").prop("disabled", true);
-        $("#parar").prop("disabled", false);
-        aprovadas = reprovadas = erros = 0;
-        $("#aprovadas").text(0);
-        $("#reprovadas").text(0);
-        $("#erros").text(0);
-        $("#logs").html("");
-
-        for (let linha of lista) {
-            if (!isRunning) break;
-
-            await testarCartao(linha);
-
-            let intervalo = Math.floor(Math.random() * (10 - 7 + 1) + 7) * 1000; // Entre 7 e 10 segundos
-            await new Promise(resolve => setTimeout(resolve, intervalo));
-        }
-
-        Swal.fire("Finalizado!", "Teste concluído!", "success");
-        $("#iniciar").prop("disabled", false);
-        $("#parar").prop("disabled", true);
-    });
-
-    $("#parar").click(function () {
-        isRunning = false;
-        Swal.fire("Parado!", "O teste foi interrompido!", "warning");
-        $("#iniciar").prop("disabled", false);
-        $("#parar").prop("disabled", true);
-    });
-
-    async function testarCartao(cartao) {
-        let [number, month, year, cvc] = cartao.split("|");
-
-        let valorAleatorio = Math.floor(Math.random() * (2000 - 1000 + 1) + 1000); // Entre R$10,00 e R$20,00 (em centavos)
-
-        try {
-            const {token, error} = await stripe.createToken(cardElement);
-
-            if (error) {
-                reprovadas++;
-                $("#reprovadas").text(reprovadas);
-                $("#logs").append(`<p style="color: red;">❌ Reprovado: ${cartao} - ${error.message}</p>`);
-                return;
-            }
-
-            // Envia para o backend (API) com o token gerado
-            let response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    paymentMethod: token.id,
-                    amount: valorAleatorio
-                })
+            // Confirmando o pagamento com o client_secret
+            const confirmResult = await stripe.confirmCardPayment(clientSecret, {
+              payment_method: paymentMethod.id,
             });
 
-            if (!response.ok) {
-                throw new Error("Erro na requisição ao backend");
-            }
-
-            let result = await response.json();
-
-            if (result.success && result.paymentIntentId) {
-                // Pagamento aprovado
-                aprovadas++;
-                $("#aprovadas").text(aprovadas);
-                $("#logs").append(`<p style="color: green;">✔️ Aprovado: ${cartao} - Pagamento de R$${(valorAleatorio / 100).toFixed(2)} realizado</p>`);
+            if (confirmResult.error) {
+              // O pagamento falhou
+              document.getElementById("card-errors").textContent = confirmResult.error.message;
             } else {
-                // Pagamento recusado ou outro erro
-                reprovadas++;
-                $("#reprovadas").text(reprovadas);
-                $("#logs").append(`<p style="color: red;">❌ Reprovado: ${cartao} - ${result.error || "Erro desconhecido"}</p>`);
+              if (confirmResult.paymentIntent.status === 'succeeded') {
+                alert('Pagamento realizado com sucesso!');
+              }
             }
-        } catch (error) {
-            // Erro na comunicação com o backend
-            erros++;
-            $("#erros").text(erros);
-            $("#logs").append(`<p style="color: orange;">⚠️ Erro na requisição: ${cartao} - ${error.message}</p>`);
+          } else {
+            document.getElementById("card-errors").textContent = data.message;
+          }
         }
-    }
-</script>
-
+      });
+    });
+  </script>
 </body>
 </html>
