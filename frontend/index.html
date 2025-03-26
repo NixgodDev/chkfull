@@ -1,106 +1,132 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Checkout Stripe</title>
+  <title>Pagamento Seguro</title>
+  <script src="https://js.stripe.com/v3/"></script> <!-- Inclui Stripe.js -->
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background-color: #f9f9f9;
-    }
     .container {
-      background: #fff;
+      max-width: 400px;
+      margin: 50px auto;
       padding: 20px;
+      font-family: Arial, sans-serif;
+      border: 1px solid #ddd;
       border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
     }
-    .form-group {
-      margin-bottom: 15px;
+    h1 {
+      text-align: center;
+      font-size: 20px;
     }
-    #payment-status {
-      margin-top: 10px;
-      font-weight: bold;
+    #card-element {
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 20px;
     }
-    .sucesso {
-      color: green;
+    button {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
     }
     .erro {
       color: red;
+    }
+    .sucesso {
+      color: green;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Pagamento com Cartão</h2>
+    <h1>Pagar com Cartão</h1>
     <form id="payment-form">
-      <div class="form-group">
-        <label for="card-element">Informações do Cartão</label>
-        <div id="card-element">
-          <!-- O elemento do cartão será inserido aqui pelo Stripe.js -->
-        </div>
-        <!-- Exibição de erros de pagamento -->
-        <div id="card-errors" role="alert"></div>
+      <div id="card-element">
+        <!-- O Stripe Elements será injetado aqui -->
       </div>
-      <button type="submit" id="submit">Pagar</button>
+      <button id="pagarBtn" disabled>Pagar R$ 10,00</button>
+      <div id="card-errors" class="erro" role="alert"></div>
+      <div id="payment-status"></div> <!-- Exibe o status do pagamento -->
     </form>
-    <div id="payment-status"></div>
   </div>
 
-  <!-- Script do Stripe.js -->
-  <script src="https://js.stripe.com/v3/"></script>
   <script>
-    // Configuração do Stripe
-    const stripe = Stripe('pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7');  // Substitua pela sua chave pública do Stripe
-    const elements = stripe.elements();
-    const card = elements.create('card');
-    card.mount('#card-element');
+    document.addEventListener("DOMContentLoaded", async function() {
+      const stripe = Stripe("pk_live_51R1BLCFMTCrh72HkN23f1mf1kcFo1aQIydknl26DXCOsg888WkhcoDcxyKfElSucgvhMxkEdfDFqUdFCbsPi8Csn00CBeL4Vb7");  // Substitua pela chave pública real
+      const elements = stripe.elements();
 
-    // Manipulador de envio do formulário
-    const form = document.getElementById('payment-form');
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      document.getElementById("payment-status").textContent = ""; // Limpar status anterior
+      const card = elements.create("card", { hidePostalCode: true });
+      card.mount("#card-element");
 
-      // Criação de um PaymentIntent no backend
-      const response = await fetch('/create-payment-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ amount: 1000 }),  // Ajuste o valor conforme necessário
-      });
-      const { clientSecret } = await response.json();
-
-      // Confirmando o pagamento no frontend
-      const confirmResult = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: card,
-        },
+      card.on("change", function(event) {
+        document.getElementById("pagarBtn").disabled = event.empty;
+        document.getElementById("card-errors").textContent = event.error ? event.error.message : "";
       });
 
-      // Verificar o resultado da confirmação
-      if (confirmResult.error) {
-        // Exibir erro se houver
-        document.getElementById("card-errors").textContent = confirmResult.error.message;
-        document.getElementById("payment-status").textContent = "Pagamento falhou!";
-        document.getElementById("payment-status").classList.add("erro");
-      } else {
-        // Verificar se o pagamento foi bem-sucedido
-        if (confirmResult.paymentIntent.status === 'succeeded') {
-          document.getElementById("payment-status").textContent = "Pagamento realizado com sucesso!";
-          document.getElementById("payment-status").classList.add("sucesso");
+      // Evento de pagamento
+      document.getElementById("payment-form").addEventListener("submit", async function(event) {
+        event.preventDefault();
+
+        // Cria o PaymentMethod com o cartão
+        const { paymentMethod, error } = await stripe.createPaymentMethod({
+          type: "card",
+          card: card
+        });
+
+        if (error) {
+          document.getElementById("card-errors").textContent = error.message;
         } else {
-          document.getElementById("payment-status").textContent = "Pagamento falhou!";
-          document.getElementById("payment-status").classList.add("erro");
+          // Envia o PaymentMethod para o backend para criar o PaymentIntent
+          const response = await fetch("https://chkfull.onrender.com/criar-payment-intent", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              paymentMethod: paymentMethod.id,
+              amount: 1000, // Valor do pagamento em centavos (R$ 10,00)
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            const clientSecret = data.clientSecret; // O client_secret do backend
+
+            // Confirmando o pagamento com o client_secret
+            const confirmResult = await stripe.confirmCardPayment(clientSecret, {
+              payment_method: paymentMethod.id,
+            });
+
+            if (confirmResult.error) {
+              // O pagamento falhou
+              document.getElementById("card-errors").textContent = confirmResult.error.message;
+              document.getElementById("payment-status").textContent = "Pagamento falhou!";
+              document.getElementById("payment-status").classList.add("erro");
+            } else {
+              if (confirmResult.paymentIntent.status === 'succeeded') {
+                document.getElementById("payment-status").textContent = "Pagamento realizado com sucesso!";
+                document.getElementById("payment-status").classList.add("sucesso");
+              }
+            }
+          } else {
+            // Caso o backend não retorne sucesso
+            document.getElementById("card-errors").textContent = data.message || "Erro desconhecido.";
+            document.getElementById("payment-status").textContent = "Pagamento falhou!";
+            document.getElementById("payment-status").classList.add("erro");
+          }
         }
-      }
+      });
     });
   </script>
 </body>
